@@ -8,7 +8,7 @@ const fs = require("fs");
 const productRoutes = require("./routes/products");
 const orderRoutes = require("./routes/orders");
 const authRoutes = require("./routes/auth");
-const uploadRoutes = require("./routes/upload"); // ✅ Upload route
+const uploadRoutes = require("./routes/upload");
 
 const app = express();
 
@@ -18,12 +18,9 @@ app.use(cors());
 
 // Ensure uploads folder exists
 const uploadDir = path.join(__dirname, "uploads");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-  console.log("Uploads folder created at:", uploadDir);
-}
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-// Serve static uploads
+// Serve static uploads (so frontend can access uploaded files)
 app.use("/uploads", express.static(uploadDir));
 
 // Default route
