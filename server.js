@@ -16,14 +16,14 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// ✅ Ensure uploads folder exists
+// Ensure uploads folder exists
 const uploadDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
   console.log("Uploads folder created at:", uploadDir);
 }
 
-// ✅ Serve static uploads (so frontend can access uploaded files)
+// Serve static uploads
 app.use("/uploads", express.static(uploadDir));
 
 // Default route
@@ -31,7 +31,7 @@ app.get("/", (req, res) => {
   res.send("Welcome to the Health & Fitness Store API 🚀");
 });
 
-// ✅ Mount existing upload router
+// Upload route
 app.use("/api/upload", uploadRoutes);
 
 // API routes
