@@ -15,45 +15,37 @@ const app = express();
 // Middleware
 app.use(express.json());
 
-// ✅ CORS configuration (local + deployed frontend)
-const corsOptions = {
-  origin: [
-    "http://localhost:5173",                        // local dev
-    "https://fitness-store-frontend-5qxu.vercel.app" // your deployed frontend
-  ],
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+// ✅ CORS setup (allow all origins)
+app.use(cors({
+  origin: true, // allow requests from any origin
+  methods: ["GET","POST","PUT","DELETE","OPTIONS"],
+  allowedHeaders: ["Content-Type","Authorization"],
   credentials: true,
-};
-app.use(cors(corsOptions));
-app.options("*", cors(corsOptions)); // preflight
+}));
 
-// Ensure backend_upload folder exists
+// Handle preflight requests for all routes
+app.options("*", cors());
+
+// Serve backend_upload folder
 const uploadDir = path.join(__dirname, "backend_upload");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
-// Serve static backend_upload folder
 app.use("/backend_upload", express.static(uploadDir));
 
-// Default route
-app.get("/", (req, res) => res.send("Welcome to the Health & Fitness Store API 🚀"));
-
-// Upload route
+// Routes
 app.use("/api/upload", uploadRoutes);
-
-// API routes
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
-app.use("/api/auth", authRoutes); 
+app.use("/api/auth", authRoutes);
 
-// Start server after DB connection
+// Default route
+app.get("/", (req, res) => res.send("Welcome to Health & Fitness Store API 🚀"));
+
+// Start server
 (async () => {
   try {
     await connectDb();
     const PORT = process.env.PORT || 5000;
-    app.listen(PORT, () =>
-      console.log(`🚀 Server running at http://localhost:${PORT}`)
-    );
+    app.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
   } catch (error) {
     console.error("❌ Failed to start server:", error);
   }
