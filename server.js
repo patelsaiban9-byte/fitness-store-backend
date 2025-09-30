@@ -15,13 +15,18 @@ const app = express();
 // Middleware
 app.use(express.json());
 
-// CORS configuration
-app.use(cors({
-  origin: ["http://localhost:5173", "https://your-production-frontend.com"], // frontend origins
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true,
-}));
+// ✅ CORS configuration
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",         // local frontend
+      "https://vercel.com/saibans-projects-f8c80aed/fitness-store-frontend/D1LBtNCYhTPpbhGFtJsqfKAhuwyr", // deployed Vercel frontend
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  })
+);
 
 // Ensure backend_upload folder exists
 const uploadDir = path.join(__dirname, "backend_upload");
@@ -31,7 +36,9 @@ if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 app.use("/backend_upload", express.static(uploadDir));
 
 // Default route
-app.get("/", (req, res) => res.send("Welcome to the Health & Fitness Store API 🚀"));
+app.get("/", (req, res) =>
+  res.send("Welcome to the Health & Fitness Store API 🚀")
+);
 
 // Upload route
 app.use("/api/upload", uploadRoutes);
@@ -39,14 +46,16 @@ app.use("/api/upload", uploadRoutes);
 // API routes
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
-app.use("/api/auth", authRoutes); 
+app.use("/api/auth", authRoutes);
 
 // Start server after DB connection
 (async () => {
   try {
     await connectDb();
     const PORT = process.env.PORT || 5000;
-    app.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
+    app.listen(PORT, () =>
+      console.log(`🚀 Server running at http://localhost:${PORT}`)
+    );
   } catch (error) {
     console.error("❌ Failed to start server:", error);
   }
