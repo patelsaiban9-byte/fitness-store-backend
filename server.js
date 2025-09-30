@@ -15,11 +15,25 @@ const app = express();
 // Middleware
 app.use(express.json());
 
-// ✅ CORS setup (allow all origins)
+// ✅ CORS setup
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://fitness-store-frontend-5qxu.vercel.app",
+  "https://fitness-store-frontend-bu4v.vercel.app", // add your new Vercel URL
+];
+
 app.use(cors({
-  origin: true, // allow requests from any origin
-  methods: ["GET","POST","PUT","DELETE","OPTIONS"],
-  allowedHeaders: ["Content-Type","Authorization"],
+  origin: function(origin, callback) {
+    // allow requests with no origin (like Postman)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = `The CORS policy for this site does not allow access from the specified Origin.`;
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
 }));
 
