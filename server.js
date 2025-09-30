@@ -14,7 +14,17 @@ const app = express();
 
 // Middleware
 app.use(express.json());
-app.use(cors());
+
+// CORS configuration
+app.use(cors({
+  origin: ["http://localhost:5173", "https://your-production-frontend.com"], // allow localhost and deployed frontend
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true, // if you use cookies or auth headers
+}));
+
+// Handle preflight requests for all routes
+app.options("*", cors());
 
 // Ensure backend_upload folder exists
 const uploadDir = path.join(__dirname, "backend_upload");
@@ -40,8 +50,9 @@ app.use("/api/auth", authRoutes);
 (async () => {
   try {
     await connectDb();
-    app.listen(5000, () => {
-      console.log("🚀 Server running at http://localhost:5000");
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running at http://localhost:${PORT}`);
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);
