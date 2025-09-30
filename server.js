@@ -15,34 +15,27 @@ const app = express();
 // Middleware
 app.use(express.json());
 
-// ✅ CORS setup
-const allowedOrigins = [
-  "http://localhost:5173",
-  "https://fitness-store-frontend-5qxu.vercel.app",
-  "https://fitness-store-frontend-bu4v.vercel.app", // add your new Vercel URL
-];
+// ✅ CORS setup: allow localhost for dev + your live frontend
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173", // local dev
+      "https://fitness-store-frontend-5qxu.vercel.app", // live frontend
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  })
+);
 
-app.use(cors({
-  origin: function(origin, callback) {
-    // allow requests with no origin (like Postman)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = `The CORS policy for this site does not allow access from the specified Origin.`;
-      return callback(new Error(msg), false);
-    }
-    return callback(null, true);
-  },
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true,
-}));
-
-// Handle preflight requests for all routes
+// Handle preflight requests correctly
 app.options("*", cors());
 
-// Serve backend_upload folder
+// Ensure backend_upload folder exists
 const uploadDir = path.join(__dirname, "backend_upload");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+// Serve backend_upload folder
 app.use("/backend_upload", express.static(uploadDir));
 
 // Routes
@@ -52,9 +45,11 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/auth", authRoutes);
 
 // Default route
-app.get("/", (req, res) => res.send("Welcome to Health & Fitness Store API 🚀"));
+app.get("/", (req, res) =>
+  res.send("Welcome to Health & Fitness Store API 🚀")
+);
 
-// Start server
+// Start server after DB connection
 (async () => {
   try {
     await connectDb();
