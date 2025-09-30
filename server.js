@@ -16,12 +16,12 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Ensure uploads folder exists
-const uploadDir = path.join(__dirname, "uploads");
+// Ensure backend_upload folder exists
+const uploadDir = path.join(__dirname, "backend_upload");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-// Serve static uploads (so frontend can access uploaded files)
-app.use("/uploads", express.static(uploadDir));
+// Serve static backend_upload folder so frontend can access images
+app.use("/backend_upload", express.static(uploadDir));
 
 // Default route
 app.get("/", (req, res) => {
