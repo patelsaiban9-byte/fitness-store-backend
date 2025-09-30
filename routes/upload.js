@@ -8,13 +8,13 @@ const router = express.Router();
 // Path to backend_upload folder
 const uploadDir = path.join(__dirname, "../backend_upload");
 
-// Ensure folder exists
+// Ensure backend_upload folder exists
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-// Multer setup
+// Multer storage setup
 const storage = multer.diskStorage({
   destination(req, file, cb) {
-    cb(null, uploadDir);
+    cb(null, uploadDir); // save files in /backend_upload
   },
   filename(req, file, cb) {
     const uniqueName = Date.now() + path.extname(file.originalname);
@@ -29,12 +29,17 @@ const upload = multer({
 
 // POST /api/upload
 router.post("/", upload.single("image"), (req, res) => {
+  console.log("Upload request received");
+
   if (!req.file) {
+    console.log("No file received");
     return res.status(400).json({ message: "No file uploaded" });
   }
 
-  // Return path starting with backend_upload
-  res.status(200).json({ imageUrl: `/backend_upload/${req.file.filename}` });
+  console.log("File saved:", req.file.filename);
+
+  // Return path starting with /backend_upload so frontend can access
+  res.status(200).json({ imageUrl: `backend_upload/${req.file.filename}` });
 });
 
 module.exports = router;
