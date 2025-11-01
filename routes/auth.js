@@ -89,7 +89,6 @@ router.post("/login", async (req, res) => {
 // ------------------ ADMIN: USER REPORTS ------------------
 router.get("/admin/reports", async (req, res) => {
   try {
-    // Optional: simple fixed admin check (for security)
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({ message: "No token provided" });
