@@ -86,7 +86,7 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// ------------------ ADMIN: USER REPORTS ------------------
+// ------------------ ADMIN: USER REPORTS WITH ORDERS ------------------
 router.get("/admin/reports", async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -104,7 +104,23 @@ router.get("/admin/reports", async (req, res) => {
     // Fetch all users (excluding passwords)
     const users = await User.find({}, { password: 0 }).sort({ createdAt: -1 });
 
-    res.status(200).json(users);
+    // Include user orders
+    const Order = require("../models/order");
+    const userReports = await Promise.all(
+      users.map(async (user) => {
+        const orders = await Order.find({ userId: user._id }).lean();
+        return {
+          ...user.toObject(),
+          orders: orders.map((o) => ({
+            productName: o.productName || "Unknown Product",
+            quantity: o.quantity || 1,
+            date: o.createdAt || new Date(),
+          })),
+        };
+      })
+    );
+
+    res.status(200).json(userReports);
   } catch (error) {
     console.error("Admin report error:", error);
     res.status(500).json({ message: "Server error" });
