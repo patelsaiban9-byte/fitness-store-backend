@@ -3,18 +3,23 @@ const router = express.Router();
 const User = require("../models/user");
 const Order = require("../models/order");
 
-// ✅ Admin Reports Route (match by email)
+// ✅ Test route to confirm admin.js is loaded
+router.get("/test", (req, res) => {
+  res.json({ message: "✅ Admin routes are active and working!" });
+});
+
+// ✅ Admin Reports Route
 router.get("/reports", async (req, res) => {
   try {
     const users = await User.find();
 
     const reports = await Promise.all(
       users.map(async (user) => {
-        // Match orders where name or email matches user email
+        // Match orders by user email or its prefix
         const orders = await Order.find({
           $or: [
-            { name: user.email }, // exact email match
-            { name: user.email.split("@")[0] }, // prefix match
+            { name: user.email },
+            { name: user.email.split("@")[0] },
           ],
         }).populate("productId", "name price");
 
