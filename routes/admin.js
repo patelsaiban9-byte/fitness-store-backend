@@ -3,42 +3,24 @@ const router = express.Router();
 const User = require("../models/user");
 const Order = require("../models/order");
 
-// ✅ Test route to confirm admin.js is loaded
-router.get("/test", (req, res) => {
-  res.json({ message: "✅ Admin routes are active and working!" });
-});
-
-// ✅ Admin Reports Route
+// Admin Reports Route
 router.get("/reports", async (req, res) => {
   try {
-    const users = await User.find();
+    const orders = await Order.find()
+      .populate("productId")
+      .sort({ createdAt: -1 });
 
-    const reports = await Promise.all(
-      users.map(async (user) => {
-        // Match orders by user email or its prefix
-        const orders = await Order.find({
-          $or: [
-            { name: user.email },
-            { name: user.email.split("@")[0] },
-          ],
-        }).populate("productId", "name price");
+    console.log("Found orders:", orders);
 
-        return {
-          email: user.email,
-          totalOrders: orders.length,
-          orders: orders.map((order) => ({
-            name: order.name,
-            address: order.address,
-            phone: order.phone,
-            pincode: order.pincode,
-            product: order.productId ? order.productId.name : "Unknown",
-            price: order.productId ? order.productId.price : "N/A",
-            createdAt: order.createdAt,
-          })),
-        };
-      })
-    );
+    const reports = orders.map(order => ({
+      email: order.name || "Unknown",
+      orders: [{
+        productName: order.productId ? order.productId.name : "Unknown",
+        createdAt: order.createdAt
+      }]
+    }));
 
+    console.log("Sending reports:", reports);
     res.json(reports);
   } catch (error) {
     console.error("❌ Error generating admin report:", error);
@@ -46,4 +28,4 @@ router.get("/reports", async (req, res) => {
   }
 });
 
-module.exports = router;
+module.exports = router;
