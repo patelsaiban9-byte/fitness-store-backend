@@ -43,10 +43,16 @@ router.get("/:id", async (req, res) => {
 // ✅ Add new product (with optional image upload)
 router.post("/", upload.single("image"), async (req, res) => {
   try {
+    // Prefer actual uploaded file, otherwise use image path sent in JSON body (from /api/upload)
+    const imagePath = req.file
+      ? `backend_upload/${req.file.filename}`
+      : (req.body.image ? String(req.body.image).replace(/^\/+/, "") : "");
+
     const newProduct = new Product({
       ...req.body,
-      image: req.file ? `/backend_upload/${req.file.filename}` : "", // store image path
+      image: imagePath, // store without leading slash for consistent usage across frontend
     });
+
     const savedProduct = await newProduct.save();
     res.status(201).json(savedProduct);
   } catch (err) {
@@ -60,7 +66,11 @@ router.put("/:id", upload.single("image"), async (req, res) => {
   try {
     const updateData = { ...req.body };
     if (req.file) {
-      updateData.image = `/backend_upload/${req.file.filename}`;
+      // store without leading slash to match front-end usage
+      updateData.image = `backend_upload/${req.file.filename}`;
+    } else if (req.body.image) {
+      // ensure any image path coming from client is normalized (no leading slash)
+      updateData.image = String(req.body.image).replace(/^\/+/, "");
     }
 
     const updated = await Product.findByIdAndUpdate(req.params.id, updateData, {
@@ -74,6 +84,7 @@ router.put("/:id", upload.single("image"), async (req, res) => {
 
     res.json(updated);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Failed to update product" });
   }
 });
