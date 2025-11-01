@@ -86,4 +86,30 @@ router.post("/login", async (req, res) => {
   }
 });
 
+// ------------------ ADMIN: USER REPORTS ------------------
+router.get("/admin/reports", async (req, res) => {
+  try {
+    // Optional: simple fixed admin check (for security)
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "No token provided" });
+    }
+
+    const token = authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY || "defaultsecret");
+
+    if (decoded.email !== FIXED_ADMIN_EMAIL) {
+      return res.status(403).json({ message: "Access denied: Admins only" });
+    }
+
+    // Fetch all users (excluding passwords)
+    const users = await User.find({}, { password: 0 }).sort({ createdAt: -1 });
+
+    res.status(200).json(users);
+  } catch (error) {
+    console.error("Admin report error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 module.exports = router;

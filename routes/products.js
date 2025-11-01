@@ -1,6 +1,21 @@
 const express = require("express");
 const router = express.Router();
+const multer = require("multer");
+const path = require("path");
 const Product = require("../models/product");
+
+// ===== Multer Config =====
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, path.join(__dirname, "../backend_upload")); // same folder as in server.js
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = Date.now() + "-" + file.originalname;
+    cb(null, uniqueName);
+  },
+});
+
+const upload = multer({ storage });
 
 // ✅ Get all products
 router.get("/", async (req, res) => {
@@ -25,25 +40,33 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// ✅ Add new product
-router.post("/", async (req, res) => {
+// ✅ Add new product (with optional image upload)
+router.post("/", upload.single("image"), async (req, res) => {
   try {
-    const newProduct = new Product(req.body);
+    const newProduct = new Product({
+      ...req.body,
+      image: req.file ? `/backend_upload/${req.file.filename}` : "", // store image path
+    });
     const savedProduct = await newProduct.save();
     res.status(201).json(savedProduct);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Failed to add product" });
   }
 });
 
-// ✅ Update product by ID
-router.put("/:id", async (req, res) => {
+// ✅ Update product by ID (with optional image upload)
+router.put("/:id", upload.single("image"), async (req, res) => {
   try {
-    const updated = await Product.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true } // return updated product, validate schema
-    );
+    const updateData = { ...req.body };
+    if (req.file) {
+      updateData.image = `/backend_upload/${req.file.filename}`;
+    }
+
+    const updated = await Product.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+      runValidators: true,
+    });
 
     if (!updated) {
       return res.status(404).json({ message: "Product not found" });
