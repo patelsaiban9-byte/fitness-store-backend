@@ -9,7 +9,6 @@ const productRoutes = require("./routes/products");
 const orderRoutes = require("./routes/orders");
 const authRoutes = require("./routes/auth");
 const uploadRoutes = require("./routes/upload");
-const adminRoutes = require("./routes/admin"); // ✅ added
 
 const app = express();
 
@@ -37,7 +36,9 @@ app.use("/api/upload", uploadRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/auth", authRoutes);
-app.use("/api/admin", adminRoutes); // ✅ added
+
+// ✅ Add this line
+app.use("/api/admin", authRoutes);
 
 // Default route
 app.get("/", (req, res) => res.send("Welcome to Health & Fitness Store API 🚀"));
