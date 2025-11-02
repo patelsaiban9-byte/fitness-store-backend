@@ -7,7 +7,7 @@ const Product = require("../models/product");
 // ===== Multer Config =====
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, "../backend_upload")); // same folder as in server.js
+    cb(null, path.join(__dirname, "../upload"));
   },
   filename: (req, file, cb) => {
     const uniqueName = Date.now() + "-" + file.originalname;
@@ -43,14 +43,15 @@ router.get("/:id", async (req, res) => {
 // ✅ Add new product (with optional image upload)
 router.post("/", upload.single("image"), async (req, res) => {
   try {
-    // Prefer actual uploaded file, otherwise use image path sent in JSON body (from /api/upload)
     const imagePath = req.file
-      ? `backend_upload/${req.file.filename}`
-      : (req.body.image ? String(req.body.image).replace(/^\/+/, "") : "");
+      ? `/upload/${req.file.filename}` // ✅ fixed: added leading slash
+      : req.body.image
+      ? String(req.body.image).replace(/^\/+/, "/")
+      : "";
 
     const newProduct = new Product({
       ...req.body,
-      image: imagePath, // store without leading slash for consistent usage across frontend
+      image: imagePath,
     });
 
     const savedProduct = await newProduct.save();
@@ -66,11 +67,9 @@ router.put("/:id", upload.single("image"), async (req, res) => {
   try {
     const updateData = { ...req.body };
     if (req.file) {
-      // store without leading slash to match front-end usage
-      updateData.image = `backend_upload/${req.file.filename}`;
+      updateData.image = `/upload/${req.file.filename}`; // ✅ fixed
     } else if (req.body.image) {
-      // ensure any image path coming from client is normalized (no leading slash)
-      updateData.image = String(req.body.image).replace(/^\/+/, "");
+      updateData.image = String(req.body.image).replace(/^\/+/, "/");
     }
 
     const updated = await Product.findByIdAndUpdate(req.params.id, updateData, {

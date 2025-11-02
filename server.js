@@ -29,14 +29,14 @@ app.use(
   })
 );
 
-// ✅ Ensure 'upload' folder exists
+// ✅ Ensure 'upload' folder exists at backend root
 const uploadDir = path.join(__dirname, "upload");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// ✅ Serve static images from /upload (MUST be lowercase)
-app.use("/upload", express.static(uploadDir));
+// ✅ Serve static images from /upload (for browser access)
+app.use("/upload", express.static(path.join(__dirname, "upload")));
 
 // ✅ Mount Routes
 app.use("/api/upload", uploadRoutes);
