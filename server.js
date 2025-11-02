@@ -11,7 +11,7 @@ const productRoutes = require("./routes/products");
 const orderRoutes = require("./routes/orders");
 const authRoutes = require("./routes/auth");
 const uploadRoutes = require("./routes/upload");
-const adminRoutes = require("./routes/admin"); // ✅ Admin routes (reports etc.)
+const adminRoutes = require("./routes/admin");
 
 // ✅ Middleware
 app.use(express.json());
@@ -20,7 +20,7 @@ app.use(express.json());
 app.use(
   cors({
     origin: [
-      "http://localhost:5173", // Local development
+      "http://localhost:5173", // Local frontend
       "https://fitness-store-frontend-5qxu.vercel.app", // Deployed frontend
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -29,31 +29,33 @@ app.use(
   })
 );
 
-// ✅ Ensure backend_upload folder exists
-const uploadDir = path.join(__dirname, "backend_upload");
+// ✅ Ensure 'upload' folder exists
+const uploadDir = path.join(__dirname, "upload");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
-app.use("/backend_upload", express.static(uploadDir));
 
-// ✅ Mount all routes
+// ✅ Serve static images from /upload (MUST be lowercase)
+app.use("/upload", express.static(uploadDir));
+
+// ✅ Mount Routes
 app.use("/api/upload", uploadRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/auth", authRoutes);
-app.use("/api/admin", adminRoutes); // ✅ Admin route added
+app.use("/api/admin", adminRoutes);
 
-// ✅ Default route
+// ✅ Default Route
 app.get("/", (req, res) => {
   res.send("Welcome to Health & Fitness Store API 🚀");
 });
 
-// ✅ 404 fallback for invalid routes
+// ✅ 404 fallback
 app.use((req, res) => {
   res.status(404).json({ error: "Route not found" });
 });
 
-// ✅ Start server
+// ✅ Start Server
 (async () => {
   try {
     await connectDb();
@@ -65,4 +67,4 @@ app.use((req, res) => {
     console.error("❌ Failed to start server:", error.message);
     process.exit(1);
   }
-})();  
+})();
