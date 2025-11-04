@@ -24,7 +24,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173", // Local frontend
-      "https://fitness-store-frontend-5qxu.vercel.app", // Deployed frontend
+      "https://fitness-store-frontend-bu4v.vercel.app", // Deployed frontend
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
