@@ -37,7 +37,7 @@ userSchema.methods.generateToken = function () {
       role: this.role,
     },
     process.env.JWT_SECRET_KEY || "defaultsecret",
-    { expiresIn: "1h" }
+    { expiresIn: "7d" } // ✅ Extended to 7 days (was 1h)
   );
 };
 
