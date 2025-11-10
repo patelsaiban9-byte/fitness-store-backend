@@ -24,7 +24,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173", // Local frontend
-      "https://fitness-store-frontend-bu4v.vercel.app", // Deployed frontend
+      "https://fitness-store-frontend-5qxu.vercel.app", // Deployed frontend
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -32,14 +32,29 @@ app.use(
   })
 );
 
-// ✅ Ensure 'upload' folder exists at backend root
-const uploadDir = path.join(__dirname, "upload");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+// ✅ Ensure 'upload' folder exists (only if not in serverless environment)
+// In serverless environments like AWS Lambda, use /tmp instead
+const isServerless = 
+  process.env.AWS_LAMBDA_FUNCTION_NAME || 
+  process.env.VERCEL || 
+  process.env.NETLIFY ||
+  __dirname.startsWith("/var/task"); // AWS Lambda detection
 
-// ✅ Serve static images from /upload (for browser access)
-app.use("/upload", express.static(path.join(__dirname, "upload")));
+const uploadDir = isServerless 
+  ? path.join("/tmp", "upload") 
+  : path.join(__dirname, "upload");
+
+try {
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+  // ✅ Serve static images from /upload (for browser access)
+  app.use("/upload", express.static(uploadDir));
+} catch (error) {
+  // In serverless environments, static file serving may not be needed
+  // since files are uploaded directly to Cloudinary
+  console.log("ℹ️  Upload directory not available (using Cloudinary for storage)");
+}
 
 // ✅ Mount Routes
 app.use("/api/upload", uploadRoutes);
