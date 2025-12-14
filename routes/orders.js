@@ -1,63 +1,72 @@
-// backend/routes/orders.js
 const express = require("express");
 const router = express.Router();
 const Order = require("../models/order");
-const Product = require("../models/product"); // for populating product info
-const User = require("../models/user");       // if you want user info too
 
-// -----------------------------
-// Place a new order (user only)
-// -----------------------------
-router.post("/", async (req, res) => {
+/* =================================================
+   🛒 PLACE CART ORDER  (USER)
+   ================================================= */
+router.post("/cart", async (req, res) => {
   try {
-    const { name, address, phone, landmark, pincode, productId } = req.body;
+    const { customer, items, totalAmount } = req.body;
 
-    if (!name || !address || !phone || !pincode || !productId) {
-      return res.status(400).json({ error: "All required fields must be provided" });
+    if (
+      !customer ||
+      !customer.name ||
+      !customer.phone ||
+      !customer.address ||
+      !customer.pincode ||
+      !items ||
+      items.length === 0
+    ) {
+      return res.status(400).json({ error: "Invalid cart order data" });
     }
 
     const newOrder = new Order({
-      name,
-      address,
-      phone,
-      landmark,
-      pincode,
-      productId,
+      customer,
+      items,
+      totalAmount,
     });
 
     await newOrder.save();
-    res.status(201).json({ message: "Order placed successfully", order: newOrder });
-  } catch (error) {
-    console.error("Error placing order:", error);
+
+    res.status(201).json({
+      message: "Cart order placed successfully",
+      orderId: newOrder._id,
+    });
+  } catch (err) {
+    console.error("Cart order error:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
-// -----------------------------
-// Get all orders (admin only)
-// -----------------------------
+/* =================================================
+   📦 GET ALL ORDERS (ADMIN)
+   ================================================= */
 router.get("/", async (req, res) => {
   try {
-    // Populate product info (name, price) for each order
     const orders = await Order.find()
-      .populate({ path: "productId", select: "name price" })
-      .sort({ createdAt: -1 }); // latest orders first
+      .populate("items.productId", "name price")
+      .sort({ createdAt: -1 });
 
     res.json(orders);
-  } catch (error) {
-    console.error("Error fetching orders:", error);
+  } catch (err) {
+    console.error("Fetch orders error:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
-// Optional: Delete an order (admin)
+/* =================================================
+   ❌ DELETE ORDER (ADMIN)
+   ================================================= */
 router.delete("/:id", async (req, res) => {
   try {
     const deleted = await Order.findByIdAndDelete(req.params.id);
-    if (!deleted) return res.status(404).json({ error: "Order not found" });
+    if (!deleted) {
+      return res.status(404).json({ error: "Order not found" });
+    }
     res.json({ message: "Order deleted successfully" });
-  } catch (error) {
-    console.error("Error deleting order:", error);
+  } catch (err) {
+    console.error("Delete order error:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
