@@ -40,6 +40,26 @@ router.post("/cart", async (req, res) => {
 });
 
 /* =================================================
+   👤 GET MY ORDERS (USER)
+   ================================================= */
+router.get("/my/:phone", async (req, res) => {
+  try {
+    const { phone } = req.params;
+
+    const orders = await Order.find({
+      "customer.phone": phone,
+    })
+      .populate("items.productId", "name price")
+      .sort({ createdAt: -1 });
+
+    res.json(orders);
+  } catch (err) {
+    console.error("My orders error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+/* =================================================
    📦 GET ALL ORDERS (ADMIN)
    ================================================= */
 router.get("/", async (req, res) => {
