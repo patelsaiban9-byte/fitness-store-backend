@@ -30,6 +30,8 @@ router.post("/cart", async (req, res) => {
 
     const newOrder = new Order({
       customer,
+      // optional userId (if frontend provides it)
+      userId: req.body.userId,
       items,
       totalAmount,
       paymentMethod: paymentMethod || "COD",
@@ -75,6 +77,29 @@ router.get("/my/:name", async (req, res) => {
     res.json(orders);
   } catch (err) {
     console.error("My orders error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+
+/* =================================================
+   👤 GET MY ORDERS BY USER ID
+   ================================================= */
+router.get("/my/user/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    console.log("👤 USER ID FROM URL:", id);
+
+    const orders = await Order.find({ userId: id })
+      .populate("items.productId", "name price")
+      .sort({ createdAt: -1 });
+
+    console.log("📦 ORDERS FOUND FOR USER:", orders.length);
+
+    res.json(orders);
+  } catch (err) {
+    console.error("My orders by userId error:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
