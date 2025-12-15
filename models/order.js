@@ -11,7 +11,7 @@ const orderSchema = new mongoose.Schema(
       landmark: String,
     },
 
-    // 🛒 Cart items (multiple products)
+    // 🛒 Cart items
     items: [
       {
         productId: {
@@ -25,8 +25,30 @@ const orderSchema = new mongoose.Schema(
       },
     ],
 
-    // 💰 Total cart amount
-    totalAmount: { type: Number, required: true },
+    // 💰 Total amount
+    totalAmount: {
+      type: Number,
+      required: true,
+    },
+
+    // 💳 Payment
+    paymentMethod: {
+      type: String,
+      enum: ["COD", "UPI", "CARD"],
+      default: "COD",
+    },
+
+    paymentStatus: {
+      type: String,
+      enum: ["PENDING", "PAID", "FAILED"],
+      default: "PENDING",
+    },
+
+    orderStatus: {
+      type: String,
+      enum: ["PLACED", "CONFIRMED", "SHIPPED", "DELIVERED"],
+      default: "PLACED",
+    },
   },
   { timestamps: true }
 );
