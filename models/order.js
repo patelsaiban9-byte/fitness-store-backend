@@ -11,6 +11,12 @@ const orderSchema = new mongoose.Schema(
       landmark: String,
     },
 
+    // Link order to a registered user (optional)
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+
     // 🛒 Cart items
     items: [
       {
