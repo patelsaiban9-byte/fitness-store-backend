@@ -167,7 +167,7 @@ router.delete("/:id", async (req, res) => {
 });
 
 /* =================================================
-   🧾 DOWNLOAD INVOICE PDF (ENHANCED DESIGN – FIXED)
+   🧾 DOWNLOAD INVOICE PDF (IMPROVED LAYOUT)
    ================================================= */
 router.get("/invoice/:id", async (req, res) => {
   try {
@@ -178,7 +178,7 @@ router.get("/invoice/:id", async (req, res) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    const doc = new PDFDocument({ margin: 40 });
+    const doc = new PDFDocument({ margin: 40, size: "A4" });
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
@@ -188,60 +188,110 @@ router.get("/invoice/:id", async (req, res) => {
 
     doc.pipe(res);
 
-    /* ---------- HEADER ---------- */
-    doc.fontSize(24).text("INVOICE", { align: "center" });
+    const formatCurrency = (n) => `₹${Number(n).toFixed(2)}`;
+
+    /* ---------- HEADER: Company + Invoice ---------- */
+    doc.fontSize(18).font("Helvetica-Bold").text("Fitness Store", 40, 40);
+    doc.fontSize(12).font("Helvetica").text("123 Fitness Ave, Health City", 40, 62);
+    doc.fontSize(12).text("Phone: +91-12345-67890", 40, 76);
+
+    doc.fontSize(20).font("Helvetica-Bold").text("INVOICE", { align: "right" });
     doc.moveDown();
 
-    doc.fontSize(12);
-    doc.text(`Invoice ID: ${order._id}`);
-    doc.text(`Date: ${new Date(order.createdAt).toDateString()}`);
-    doc.moveDown();
+    doc.fontSize(10).font("Helvetica");
+    doc.text(`Invoice ID: ${order._id}`, { align: "right" });
+    doc.text(`Date: ${new Date(order.createdAt).toLocaleString()}`, { align: "right" });
 
-    /* ---------- CUSTOMER ---------- */
-    doc.fontSize(14).text("Customer Details", { underline: true });
-    doc.fontSize(12);
-    doc.text(`Name: ${order.customer.name}`);
-    doc.text(`Phone: ${order.customer.phone}`);
-    doc.text(`Address: ${order.customer.address}`);
-    doc.text(`Pincode: ${order.customer.pincode}`);
-    doc.moveDown();
+    doc.moveDown(2);
 
-    /* ---------- ITEMS ---------- */
-    doc.fontSize(14).text("Order Items", { underline: true });
-    doc.moveDown(0.5);
+    /* ---------- CUSTOMER & ORDER INFO ---------- */
+    const customerX = 40;
+    const infoX = 320;
+
+    doc.fontSize(12).font("Helvetica-Bold").text("Bill To:", customerX);
+    doc.fontSize(11).font("Helvetica").text(order.customer.name || "-", customerX + 60);
+    doc.text(order.customer.address || "-", customerX + 60);
+    doc.text(`Phone: ${order.customer.phone || "-"}`, customerX + 60);
+    doc.text(`Pincode: ${order.customer.pincode || "-"}`, customerX + 60);
+
+    doc.fontSize(12).font("Helvetica-Bold").text("Order Info:", infoX);
+    doc.fontSize(11).font("Helvetica").text(`Order ID: ${order._id}`, infoX + 70);
+    doc.text(`Status: ${order.orderStatus || '-'}`, infoX + 70);
+
+    doc.moveDown(1.5);
+
+    /* ---------- ITEMS TABLE ---------- */
+    const tableTop = doc.y + 10;
+    const itemX = 40;
+    const qtyX = 320;
+    const priceX = 380;
+    const totalX = 460;
+
+    doc.fontSize(12).font("Helvetica-Bold");
+    doc.text("Item", itemX, tableTop);
+    doc.text("Qty", qtyX, tableTop);
+    doc.text("Price", priceX, tableTop);
+    doc.text("Total", totalX, tableTop);
+
+    const headerBottom = tableTop + 18;
+    doc.moveTo(itemX, headerBottom).lineTo(550, headerBottom).stroke();
+
+    let y = headerBottom + 8;
+    doc.font("Helvetica").fontSize(11);
 
     order.items.forEach((item, i) => {
-      doc.text(
-        `${i + 1}. ${item.name} × ${item.qty} = ₹${item.price * item.qty}`
-      );
+      const name = item.name || (item.productId && item.productId.name) || "Item";
+      const qty = item.qty || 1;
+      const unit = Number(item.price || 0);
+      const lineTotal = unit * qty;
+
+      // wrap long names
+      doc.text(name, itemX, y, { width: 260 });
+      doc.text(String(qty), qtyX, y);
+      doc.text(formatCurrency(unit), priceX, y);
+      doc.text(formatCurrency(lineTotal), totalX, y);
+
+      const itemHeight = doc.heightOfString(name, { width: 260 });
+      y += Math.max(itemHeight, 16);
+      if (y > 720) {
+        doc.addPage();
+        y = 40;
+      }
     });
 
-    doc.moveDown();
-    doc.fontSize(14).text(`Total Amount: ₹${order.totalAmount}`, {
-      align: "right",
-    });
+    doc.moveTo(itemX, y + 4).lineTo(550, y + 4).stroke();
 
-    doc.moveDown(2);
+    /* ---------- AMOUNTS ---------- */
+    const subtotal = order.items.reduce((s, it) => s + (Number(it.price || 0) * (it.qty || 1)), 0);
+    const tax = 0; // placeholder
+    const shipping = 0; // placeholder
+    const grandTotal = Number(order.totalAmount || subtotal + tax + shipping);
 
-    /* ---------- PAYMENT INFO (SPACING FIX) ---------- */
-    doc.fontSize(12).font("Helvetica-Bold").text("Payment Status:");
-    doc.font("Helvetica")
-      .fillColor(order.paymentStatus === "PAID" ? "green" : "red")
-      .text(order.paymentStatus, 160, doc.y - 15);
+    y += 12;
+    doc.fontSize(12).font("Helvetica-Bold").text("Subtotal:", 380, y);
+    doc.font("Helvetica").text(formatCurrency(subtotal), 460, y);
+    y += 16;
+    doc.font("Helvetica-Bold").text("Tax:", 380, y);
+    doc.font("Helvetica").text(formatCurrency(tax), 460, y);
+    y += 16;
+    doc.font("Helvetica-Bold").text("Shipping:", 380, y);
+    doc.font("Helvetica").text(formatCurrency(shipping), 460, y);
+    y += 16;
+    doc.fontSize(14).font("Helvetica-Bold").text("Total:", 380, y);
+    doc.text(formatCurrency(grandTotal), 460, y);
 
-    doc.moveDown(0.5);
+    y += 28;
 
-    doc.font("Helvetica-Bold")
-      .fillColor("black")
-      .text("Payment Method:");
-    doc.font("Helvetica")
-      .text(order.paymentMethod, 160, doc.y - 15);
+    /* ---------- PAYMENT INFO ---------- */
+    doc.fontSize(11).font("Helvetica-Bold").text("Payment Method:", 40, y);
+    doc.font("Helvetica").text(order.paymentMethod || '-', 160, y);
+    y += 16;
+    doc.font("Helvetica-Bold").text("Payment Status:", 40, y);
+    doc.fillColor(order.paymentStatus === "PAID" ? "green" : "red").font("Helvetica").text(order.paymentStatus || '-', 160, y);
+    doc.fillColor("black");
 
-    doc.moveDown(2);
-
-    doc.fontSize(10).text("Thank you for shopping with us ❤️", {
-      align: "center",
-    });
+    /* ---------- FOOTER ---------- */
+    doc.fontSize(10).text("Thank you for your purchase! Visit again.", 40, 760, { align: "center", width: 520 });
 
     doc.end();
   } catch (err) {
