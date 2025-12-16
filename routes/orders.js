@@ -37,6 +37,13 @@ router.post("/cart", async (req, res) => {
       paymentMethod: paymentMethod || "COD",
       paymentStatus: paymentStatus || "PENDING",
       orderStatus: "PLACED",
+      trackingEvents: [
+        {
+          status: "PLACED",
+          note: "Order placed",
+          updatedBy: req.body.userId || null,
+        },
+      ],
     });
 
     await newOrder.save();
@@ -144,6 +151,47 @@ router.patch("/payment/:id", async (req, res) => {
     res.json({ message: "Payment status updated", order: updatedOrder });
   } catch (err) {
     console.error("Payment update error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+/* =================================================
+   🚚 UPDATE ORDER STATUS (ADMIN)
+   ================================================= */
+router.patch("/status/:id", async (req, res) => {
+  try {
+    const { status, note, updatedBy } = req.body;
+
+    const allowed = [
+      "PLACED",
+      "CONFIRMED",
+      "SHIPPED",
+      "OUT_FOR_DELIVERY",
+      "DELIVERED",
+      "CANCELLED",
+      "RETURNED",
+    ];
+
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ error: "Invalid order status" });
+    }
+
+    const updatedOrder = await Order.findByIdAndUpdate(
+      req.params.id,
+      {
+        $set: { orderStatus: status },
+        $push: { trackingEvents: { status, note: note || "", updatedBy: updatedBy || null } },
+      },
+      { new: true }
+    ).populate("items.productId", "name price image");
+
+    if (!updatedOrder) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    res.json({ message: "Order status updated", order: updatedOrder });
+  } catch (err) {
+    console.error("Status update error:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
@@ -297,6 +345,24 @@ router.get("/invoice/:id", async (req, res) => {
   } catch (err) {
     console.error("Invoice error:", err);
     res.status(500).json({ error: "Failed to generate invoice" });
+  }
+});
+
+/* =================================================
+   📦 GET SINGLE ORDER (USER/ADMIN) - for tracking
+   ================================================= */
+router.get("/:id", async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id).populate("items.productId", "name price image");
+
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    res.json(order);
+  } catch (err) {
+    console.error("Fetch order error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 

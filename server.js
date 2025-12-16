@@ -26,7 +26,7 @@ app.use(
       "http://localhost:5173", // Local frontend
       "https://fitness-store-frontend.vercel.app", // Deployed frontend
     ],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
