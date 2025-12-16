@@ -69,7 +69,7 @@ router.get("/my/:name", async (req, res) => {
     const orders = await Order.find({
       "customer.name": { $regex: new RegExp(`^${safeName}$`, "i") },
     })
-      .populate("items.productId", "name price")
+      .populate("items.productId", "name price image")
       .sort({ createdAt: -1 });
 
     console.log("📦 ORDERS FOUND:", orders.length);
@@ -92,7 +92,7 @@ router.get("/my/user/:id", async (req, res) => {
     console.log("👤 USER ID FROM URL:", id);
 
     const orders = await Order.find({ userId: id })
-      .populate("items.productId", "name price")
+      .populate("items.productId", "name price image")
       .sort({ createdAt: -1 });
 
     console.log("📦 ORDERS FOUND FOR USER:", orders.length);
@@ -110,7 +110,7 @@ router.get("/my/user/:id", async (req, res) => {
 router.get("/", async (req, res) => {
   try {
     const orders = await Order.find()
-      .populate("items.productId", "name price")
+      .populate("items.productId", "name price image")
       .sort({ createdAt: -1 });
 
     res.json(orders);
