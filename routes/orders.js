@@ -156,7 +156,7 @@ router.patch("/payment/:id", async (req, res) => {
 });
 
 /* =================================================
-   🚚 UPDATE ORDER STATUS (ADMIN)
+   🚚 UPDATE ORDER STATUS (ADMIN) - WITH VALIDATION
    ================================================= */
 router.patch("/status/:id", async (req, res) => {
   try {
@@ -176,6 +176,40 @@ router.patch("/status/:id", async (req, res) => {
       return res.status(400).json({ error: "Invalid order status" });
     }
 
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    // ✅ Prevent duplicate status update
+    if (order.orderStatus === status) {
+      return res.status(400).json({ 
+        error: `Order is already in ${status} status. Cannot update to the same status.` 
+      });
+    }
+
+    // ✅ Validation: Define allowed transitions
+    const validTransitions = {
+      "PLACED": ["CONFIRMED", "CANCELLED"],
+      "CONFIRMED": ["SHIPPED", "CANCELLED"],
+      "SHIPPED": ["OUT_FOR_DELIVERY", "CANCELLED"],
+      "OUT_FOR_DELIVERY": ["DELIVERED", "CANCELLED"],
+      "DELIVERED": ["RETURNED"],
+      "CANCELLED": [],
+      "RETURNED": [],
+    };
+
+    const currentStatus = order.orderStatus;
+    const allowedNextStates = validTransitions[currentStatus] || [];
+
+    // ✅ Check if the new status is a valid transition
+    if (!allowedNextStates.includes(status)) {
+      return res.status(400).json({ 
+        error: `Invalid transition: Cannot change from ${currentStatus} to ${status}. Allowed: ${allowedNextStates.join(", ") || "None"}` 
+      });
+    }
+
+    // ✅ Update order with new status and track event
     const updatedOrder = await Order.findByIdAndUpdate(
       req.params.id,
       {
@@ -185,11 +219,7 @@ router.patch("/status/:id", async (req, res) => {
       { new: true }
     ).populate("items.productId", "name price image");
 
-    if (!updatedOrder) {
-      return res.status(404).json({ error: "Order not found" });
-    }
-
-    res.json({ message: "Order status updated", order: updatedOrder });
+    res.json({ message: "Order status updated successfully", order: updatedOrder });
   } catch (err) {
     console.error("Status update error:", err);
     res.status(500).json({ error: "Internal Server Error" });
