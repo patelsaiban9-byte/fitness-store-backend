@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Order = require("../models/order");
 const PDFDocument = require("pdfkit");
+const { sendOrderConfirmationEmail, sendOrderStatusEmail } = require("../utils/emailService");
 
 /* =================================================
    🛒 PLACE CART ORDER (USER)
@@ -20,12 +21,13 @@ router.post("/cart", async (req, res) => {
       !customer ||
       !customer.name ||
       !customer.phone ||
+      !customer.email ||
       !customer.address ||
       !customer.pincode ||
       !items ||
       items.length === 0
     ) {
-      return res.status(400).json({ error: "Invalid cart order data" });
+      return res.status(400).json({ error: "Invalid cart order data - email is required" });
     }
 
     const newOrder = new Order({
@@ -48,9 +50,20 @@ router.post("/cart", async (req, res) => {
 
     await newOrder.save();
 
+    // Send confirmation email
+    const emailResult = await sendOrderConfirmationEmail({
+      customer,
+      orderId: newOrder._id,
+      items,
+      totalAmount,
+    });
+
+    console.log("📧 Email service result:", emailResult);
+
     res.status(201).json({
       message: "Cart order placed successfully",
       orderId: newOrder._id,
+      emailSent: emailResult.success,
     });
   } catch (err) {
     console.error("Cart order error:", err);
@@ -219,7 +232,17 @@ router.patch("/status/:id", async (req, res) => {
       { new: true }
     ).populate("items.productId", "name price image");
 
-    res.json({ message: "Order status updated successfully", order: updatedOrder });
+    // Send status update email to customer
+    const emailResult = await sendOrderStatusEmail(
+      updatedOrder.customer,
+      updatedOrder._id,
+      status,
+      note
+    );
+
+    console.log("📧 Status update email result:", emailResult);
+
+    res.json({ message: "Order status updated successfully", order: updatedOrder, emailSent: emailResult.success });
   } catch (err) {
     console.error("Status update error:", err);
     res.status(500).json({ error: "Internal Server Error" });

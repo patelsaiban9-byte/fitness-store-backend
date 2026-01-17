@@ -23,7 +23,8 @@ app.use(express.json());
 app.use(
   cors({
     origin: [
-      "http://localhost:5173", // Local frontend
+      "http://localhost:5173", // Local frontend (default Vite port)
+      "http://localhost:5174", // Local frontend (alternate port)
       "https://fitness-store-frontend.vercel.app", // Deployed frontend
     ],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
