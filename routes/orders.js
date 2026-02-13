@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Order = require("../models/order");
 const PDFDocument = require("pdfkit");
+const fs = require("fs");
 const { sendOrderConfirmationEmail, sendOrderStatusEmail } = require("../utils/emailService");
 
 /* =================================================
@@ -289,7 +290,45 @@ router.get("/invoice/:id", async (req, res) => {
 
     doc.pipe(res);
 
-    const formatCurrency = (n) => `₹${Number(n).toFixed(2)}`;
+    // Attempt to find a Windows font that contains the rupee glyph (₹).
+    const findWindowsFont = () => {
+      const candidates = [
+        "C:\\Windows\\Fonts\\segoeui.ttf",
+        "C:\\Windows\\Fonts\\arial.ttf",
+        "C:\\Windows\\Fonts\\arialuni.ttf",
+        "C:\\Windows\\Fonts\\calibri.ttf",
+        "C:\\Windows\\Fonts\\Nirmala.ttf",
+      ];
+      for (const p of candidates) {
+        try {
+          if (fs.existsSync(p)) return p;
+        } catch (e) {
+          // ignore
+        }
+      }
+      return null;
+    };
+
+    const currencyFontPath = findWindowsFont();
+    const currencySymbol = "₹";
+
+    // Return only numeric formatted amount; symbol is drawn with a font that supports it when available.
+    const formatCurrency = (n) => `${Number(n).toFixed(2)}`;
+
+    const writeCurrency = (value, x, y) => {
+      const text = `${currencySymbol}${Number(value).toFixed(2)}`;
+      if (currencyFontPath) {
+        try {
+          doc.font(currencyFontPath).text(text, x, y);
+          doc.font("Helvetica");
+          return;
+        } catch (e) {
+          // fallthrough to text fallback
+        }
+      }
+      // Fallback when rupee glyph can't be rendered: use 'Rs.' prefix
+      doc.text(`Rs.${Number(value).toFixed(2)}`, x, y);
+    };
 
     /* ---------- HEADER: Company + Invoice ---------- */
     doc.fontSize(18).font("Helvetica-Bold").text("Fitness Store", 40, 40);
@@ -370,16 +409,19 @@ router.get("/invoice/:id", async (req, res) => {
 
     y += 12;
     doc.fontSize(12).font("Helvetica-Bold").text("Subtotal:", 380, y);
-    doc.font("Helvetica").text(formatCurrency(subtotal), 460, y);
+    doc.font("Helvetica");
+    writeCurrency(subtotal, 460, y);
     y += 16;
     doc.font("Helvetica-Bold").text("Tax:", 380, y);
-    doc.font("Helvetica").text(formatCurrency(tax), 460, y);
+    doc.font("Helvetica");
+    writeCurrency(tax, 460, y);
     y += 16;
     doc.font("Helvetica-Bold").text("Shipping:", 380, y);
-    doc.font("Helvetica").text(formatCurrency(shipping), 460, y);
+    doc.font("Helvetica");
+    writeCurrency(shipping, 460, y);
     y += 16;
     doc.fontSize(14).font("Helvetica-Bold").text("Total:", 380, y);
-    doc.text(formatCurrency(grandTotal), 460, y);
+    writeCurrency(grandTotal, 460, y);
 
     y += 28;
 
