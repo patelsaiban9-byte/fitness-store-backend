@@ -349,8 +349,8 @@ router.get("/invoice/:id", async (req, res) => {
       // wrap long names
       doc.text(name, itemX, y, { width: 260 });
       doc.text(String(qty), qtyX, y);
-      doc.text(formatCurrency(unit), priceX, y);
-      doc.text(formatCurrency(lineTotal), totalX, y);
+      doc.text(unit, priceX, y);
+      doc.text(lineTotal, totalX, y);
 
       const itemHeight = doc.heightOfString(name, { width: 260 });
       y += Math.max(itemHeight, 16);
