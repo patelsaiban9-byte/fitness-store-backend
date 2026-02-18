@@ -1,9 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const Order = require("../models/order");
+const Product = require("../models/product");
 const PDFDocument = require("pdfkit");
 const fs = require("fs");
-const { sendOrderConfirmationEmail, sendOrderStatusEmail } = require("../utils/emailService");
+const { sendOrderConfirmationEmail, sendOrderStatusEmail, sendLowStockAlert } = require("../utils/emailService");
 
 /* =================================================
    🛒 PLACE CART ORDER (USER)
@@ -31,6 +32,40 @@ router.post("/cart", async (req, res) => {
       return res.status(400).json({ error: "Invalid cart order data - email is required" });
     }
 
+    // ✅ CHECK STOCK AVAILABILITY FOR ALL ITEMS (only if stock is being tracked)
+    const stockIssues = [];
+    for (const item of items) {
+      if (item.productId) {
+        const product = await Product.findById(item.productId);
+        console.log(`📦 Checking stock for ${item.name}:`, {
+          productId: item.productId,
+          foundProduct: !!product,
+          currentStock: product?.stock,
+          requestedQty: item.qty,
+          stockTracked: product?.stock != null
+        });
+        
+        if (!product) {
+          stockIssues.push(`Product "${item.name}" not found`);
+        } else if (product.stock != null && product.stock < item.qty) {
+          // Only enforce stock limits if stock is actively managed (not undefined/null)
+          console.log(`❌ INSUFFICIENT STOCK: ${product.name} - Available: ${product.stock}, Requested: ${item.qty}`);
+          stockIssues.push(
+            `"${product.name}" - Only ${product.stock} units available, but ${item.qty} requested`
+          );
+        } else {
+          console.log(`✅ Stock OK for ${product.name}`);
+        }
+      }
+    }
+
+    if (stockIssues.length > 0) {
+      return res.status(400).json({ 
+        error: "Insufficient stock", 
+        details: stockIssues 
+      });
+    }
+
     const newOrder = new Order({
       customer,
       // optional userId (if frontend provides it)
@@ -50,6 +85,37 @@ router.post("/cart", async (req, res) => {
     });
 
     await newOrder.save();
+
+    // ✅ DECREASE STOCK FOR EACH ITEM AND CHECK FOR LOW STOCK (only if stock is tracked)
+    for (const item of items) {
+      if (item.productId) {
+        const product = await Product.findById(item.productId);
+        if (product && product.stock != null) {
+          // Only manage stock if it's actively tracked (not undefined/null)
+          product.stock -= item.qty;
+          await product.save();
+
+          // ✅ CHECK IF STOCK IS NOW BELOW MINIMUM THRESHOLD
+          if (product.stock <= product.minimumStockThreshold && product.stock > 0) {
+            console.log(`⚠️ Low stock detected for ${product.name}: ${product.stock} units remaining`);
+            await sendLowStockAlert({
+              productName: product.name,
+              productId: product._id,
+              currentStock: product.stock,
+              minimumThreshold: product.minimumStockThreshold,
+            });
+          } else if (product.stock === 0) {
+            console.log(`🚫 ${product.name} is now OUT OF STOCK`);
+            await sendLowStockAlert({
+              productName: product.name,
+              productId: product._id,
+              currentStock: product.stock,
+              minimumThreshold: product.minimumStockThreshold,
+            });
+          }
+        }
+      }
+    }
 
     // Send confirmation email
     const emailResult = await sendOrderConfirmationEmail({

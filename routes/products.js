@@ -142,6 +142,49 @@ router.put("/:id", upload.single("image"), async (req, res) => {
   }
 });
 
+// ✅ Update product stock (dedicated endpoint for restocking)
+router.patch("/:id/stock", async (req, res) => {
+  try {
+    const { stock, minimumStockThreshold } = req.body;
+    
+    const updateData = {};
+    if (stock !== undefined) {
+      if (stock < 0) {
+        return res.status(400).json({ message: "Stock cannot be negative" });
+      }
+      updateData.stock = stock;
+    }
+    if (minimumStockThreshold !== undefined) {
+      if (minimumStockThreshold < 0) {
+        return res.status(400).json({ message: "Minimum stock threshold cannot be negative" });
+      }
+      updateData.minimumStockThreshold = minimumStockThreshold;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ message: "No stock data provided" });
+    }
+
+    const updated = await Product.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    res.json({ 
+      message: "Stock updated successfully", 
+      product: updated 
+    });
+  } catch (err) {
+    console.error("❌ Error updating stock:", err);
+    res.status(500).json({ message: "Failed to update stock", error: err.message });
+  }
+});
+
 // ✅ Delete product by ID
 router.delete("/:id", async (req, res) => {
   try {

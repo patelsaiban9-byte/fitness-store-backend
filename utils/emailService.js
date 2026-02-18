@@ -149,7 +149,71 @@ const sendOrderStatusEmail = async (customer, orderId, newStatus, note = "") => 
   }
 };
 
+// Send low stock alert email to admin
+const sendLowStockAlert = async (productData) => {
+  const { productName, productId, currentStock, minimumThreshold } = productData;
+
+  try {
+    const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
+    
+    if (!adminEmail) {
+      console.warn("⚠️ No admin email configured. Skipping low stock alert.");
+      return { success: false, error: "Admin email not configured" };
+    }
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #fff3cd; padding: 20px;">
+        <div style="background-color: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border-left: 4px solid #ff9800;">
+          <h2 style="color: #d84315; text-align: center;">⚠️ Low Stock Alert</h2>
+          <hr style="border: 1px solid #ddd;">
+          
+          <p style="color: #555; font-size: 16px;">Dear Admin,</p>
+          
+          <p style="color: #555; font-size: 14px;">This is an automated alert to inform you that the following product is running low on stock:</p>
+          
+          <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ff9800;">
+            <h3 style="color: #d84315; margin-top: 0;">Product Details</h3>
+            <p style="color: #666; margin: 5px 0;"><strong>Product Name:</strong> ${productName}</p>
+            <p style="color: #666; margin: 5px 0;"><strong>Product ID:</strong> ${productId}</p>
+            <p style="color: #d84315; margin: 5px 0; font-size: 18px;"><strong>Current Stock: ${currentStock} units</strong></p>
+            <p style="color: #666; margin: 5px 0;"><strong>Minimum Threshold:</strong> ${minimumThreshold} units</p>
+          </div>
+
+          <div style="background-color: #ffebee; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #f44336;">
+            <p style="color: #c62828; margin: 0;"><strong>⚠️ Action Required:</strong></p>
+            <p style="color: #666; margin: 10px 0; font-size: 14px;">Please restock this product as soon as possible to avoid running out of stock and disappointing customers.</p>
+          </div>
+
+          <p style="color: #666; font-size: 14px; margin-top: 20px;">This is an automated alert from your inventory management system.</p>
+          
+          <hr style="border: 1px solid #ddd; margin: 20px 0;">
+          
+          <p style="color: #999; font-size: 12px; text-align: center;">
+            <strong>Fitness Store</strong><br>
+            Inventory Management System
+          </p>
+        </div>
+      </div>
+    `;
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER || "noreply@fitnessstore.com",
+      to: adminEmail,
+      subject: `🚨 Low Stock Alert - ${productName}`,
+      html: htmlContent,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log("✅ Low stock alert email sent:", info.response);
+    return { success: true, message: "Low stock alert email sent successfully" };
+  } catch (error) {
+    console.error("❌ Error sending low stock alert email:", error);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   sendOrderConfirmationEmail,
   sendOrderStatusEmail,
+  sendLowStockAlert,
 };
