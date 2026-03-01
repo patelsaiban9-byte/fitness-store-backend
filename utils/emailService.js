@@ -212,8 +212,195 @@ const sendLowStockAlert = async (productData) => {
   }
 };
 
+// Send return request email to user
+const sendReturnRequestEmail = async (returnData) => {
+  const { customer, orderId, returnId, items, refundAmount, reason } = returnData;
+
+  try {
+    const itemsHtml = items
+      .map(
+        (item) =>
+          `<tr>
+            <td style="padding: 10px; border-bottom: 1px solid #ddd;">${item.name}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: center;">₹${item.price}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: center;">${item.qty}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: right;">₹${item.price * item.qty}</td>
+          </tr>`
+      )
+      .join("");
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f5f5f5; padding: 20px;">
+        <div style="background-color: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+          <h2 style="color: #333; text-align: center;">🔄 Return Request Received</h2>
+          <hr style="border: 1px solid #ddd;">
+          
+          <p style="color: #555; font-size: 16px;">Dear <strong>${customer.name}</strong>,</p>
+          
+          <p style="color: #555; font-size: 14px;">We have received your return request. Our team will review it and get back to you shortly.</p>
+          
+          <div style="background-color: #fff3e0; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ff9800;">
+            <h3 style="color: #333; margin-top: 0;">Return Request Details</h3>
+            <p style="color: #666; margin: 5px 0;"><strong>Return ID:</strong> ${returnId}</p>
+            <p style="color: #666; margin: 5px 0;"><strong>Order ID:</strong> ${orderId}</p>
+            <p style="color: #666; margin: 5px 0;"><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+            <p style="color: #666; margin: 5px 0;"><strong>Status:</strong> <span style="color: #ff9800; font-weight: bold;">PENDING REVIEW</span></p>
+          </div>
+
+          <h3 style="color: #333;">Items to Return:</h3>
+          <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+            <thead>
+              <tr style="background-color: #f0f0f0;">
+                <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Product</th>
+                <th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Price</th>
+                <th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Qty</th>
+                <th style="padding: 10px; text-align: right; border: 1px solid #ddd;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+
+          <div style="text-align: right; padding: 15px 0; border-top: 2px solid #ddd; border-bottom: 2px solid #ddd;">
+            <h3 style="color: #333; margin: 10px 0;"><strong>Refund Amount: ₹${refundAmount}</strong></h3>
+          </div>
+
+          <h3 style="color: #333;">Reason for Return:</h3>
+          <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <p style="color: #666; margin: 0;">${reason}</p>
+          </div>
+
+          <div style="background-color: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #2196f3;">
+            <p style="color: #1565c0; margin: 0;"><strong>📋 What's Next?</strong></p>
+            <p style="color: #666; margin: 10px 0; font-size: 14px;">Our team will review your return request within 24-48 hours. You will receive an email notification once your request is approved or if we need additional information.</p>
+          </div>
+
+          <p style="color: #666; font-size: 14px; margin-top: 20px;">If you have any questions, please don't hesitate to contact us.</p>
+          
+          <hr style="border: 1px solid #ddd; margin: 20px 0;">
+          
+          <p style="color: #999; font-size: 12px; text-align: center;">
+            <strong>Fitness Store</strong><br>
+            Your trusted fitness equipment provider
+          </p>
+        </div>
+      </div>
+    `;
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER || "noreply@fitnessstore.com",
+      to: customer.email,
+      subject: `Return Request Received - Order #${orderId}`,
+      html: htmlContent,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log("✅ Return request email sent:", info.response);
+    return { success: true, message: "Email sent successfully" };
+  } catch (error) {
+    console.error("❌ Error sending return request email:", error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Send return status update email to user
+const sendReturnStatusEmail = async (returnData) => {
+  const { customer, orderId, returnId, status, refundAmount, adminNotes } = returnData;
+
+  try {
+    const statusConfig = {
+      APPROVED: {
+        color: "#4caf50",
+        bgColor: "#e8f5e9",
+        icon: "✅",
+        title: "Return Request Approved",
+        message: "Great news! Your return request has been approved. Your refund will be processed shortly.",
+      },
+      REJECTED: {
+        color: "#f44336",
+        bgColor: "#ffebee",
+        icon: "❌",
+        title: "Return Request Rejected",
+        message: "We're sorry, but your return request has been reviewed and cannot be approved at this time.",
+      },
+      COMPLETED: {
+        color: "#2196f3",
+        bgColor: "#e3f2fd",
+        icon: "✅",
+        title: "Refund Completed",
+        message: "Your refund has been successfully processed.",
+      },
+    };
+
+    const config = statusConfig[status] || statusConfig.APPROVED;
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f5f5f5; padding: 20px;">
+        <div style="background-color: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+          <h2 style="color: #333; text-align: center;">${config.icon} ${config.title}</h2>
+          <hr style="border: 1px solid #ddd;">
+          
+          <p style="color: #555; font-size: 16px;">Dear <strong>${customer.name}</strong>,</p>
+          
+          <div style="background-color: ${config.bgColor}; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid ${config.color};">
+            <p style="color: ${config.color}; margin: 0;"><strong>Return ID:</strong> ${returnId}</p>
+            <p style="color: ${config.color}; margin: 10px 0;"><strong>Order ID:</strong> ${orderId}</p>
+            <p style="color: ${config.color}; margin: 10px 0; font-size: 18px;"><strong>Status: ${status}</strong></p>
+            <p style="color: #555; margin: 10px 0;">${config.message}</p>
+          </div>
+
+          ${status === "APPROVED" ? `
+          <div style="text-align: center; padding: 15px 0; background-color: #f9f9f9; border-radius: 5px; margin: 20px 0;">
+            <h3 style="color: #333; margin: 10px 0;"><strong>Refund Amount: ₹${refundAmount}</strong></h3>
+            <p style="color: #666; margin: 5px 0; font-size: 14px;">The refund will be credited to your original payment method within 5-7 business days.</p>
+          </div>
+          ` : ""}
+
+          ${adminNotes ? `
+          <h3 style="color: #333;">Additional Notes:</h3>
+          <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <p style="color: #666; margin: 0;">${adminNotes}</p>
+          </div>
+          ` : ""}
+
+          <div style="background-color: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #2196f3;">
+            <p style="color: #1565c0; margin: 0;"><strong>📞 Need Help?</strong></p>
+            <p style="color: #666; margin: 10px 0; font-size: 14px;">If you have any questions about your return or refund, please contact our customer support team.</p>
+          </div>
+
+          <p style="color: #666; font-size: 14px; margin-top: 20px;">Thank you for shopping with us!</p>
+          
+          <hr style="border: 1px solid #ddd; margin: 20px 0;">
+          
+          <p style="color: #999; font-size: 12px; text-align: center;">
+            <strong>Fitness Store</strong><br>
+            Your trusted fitness equipment provider
+          </p>
+        </div>
+      </div>
+    `;
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER || "noreply@fitnessstore.com",
+      to: customer.email,
+      subject: `Return Status Update - ${status} - Order #${orderId}`,
+      html: htmlContent,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log("✅ Return status email sent:", info.response);
+    return { success: true, message: "Email sent successfully" };
+  } catch (error) {
+    console.error("❌ Error sending return status email:", error);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   sendOrderConfirmationEmail,
   sendOrderStatusEmail,
   sendLowStockAlert,
+  sendReturnRequestEmail,
+  sendReturnStatusEmail,
 };
