@@ -34,9 +34,6 @@ app.use(
   })
 );
 
-// ✅ Handle preflight requests explicitly
-app.options("*", cors());
-
 // ✅ Ensure 'upload' folder exists (only if not in serverless environment)
 // In serverless environments like AWS Lambda, use /tmp instead
 const isServerless = 
