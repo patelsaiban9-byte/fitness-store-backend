@@ -34,6 +34,9 @@ app.use(
   })
 );
 
+// ✅ Handle preflight requests explicitly
+app.options("*", cors());
+
 // ✅ Ensure 'upload' folder exists (only if not in serverless environment)
 // In serverless environments like AWS Lambda, use /tmp instead
 const isServerless = 
@@ -76,16 +79,24 @@ app.use((req, res) => {
   res.status(404).json({ error: "Route not found" });
 });
 
-// ✅ Start Server
-(async () => {
-  try {
-    await connectDb();
-    const PORT = process.env.PORT || 5000;
-    app.listen(PORT, () =>
-      console.log(`🚀 Server running at http://localhost:${PORT}`)
-    );
-  } catch (error) {
-    console.error("❌ Failed to start server:", error.message);
-    process.exit(1);
-  }
-})();
+// ✅ Start Server (only for local development)
+if (process.env.NODE_ENV !== "production") {
+  (async () => {
+    try {
+      await connectDb();
+      const PORT = process.env.PORT || 5000;
+      app.listen(PORT, () =>
+        console.log(`🚀 Server running at http://localhost:${PORT}`)
+      );
+    } catch (error) {
+      console.error("❌ Failed to start server:", error.message);
+      process.exit(1);
+    }
+  })();
+} else {
+  // ✅ Connect to DB in production (Vercel)
+  connectDb().catch(err => console.error("❌ DB connection error:", err));
+}
+
+// ✅ Export for Vercel serverless
+module.exports = app;
