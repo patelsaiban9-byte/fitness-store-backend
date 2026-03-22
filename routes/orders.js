@@ -6,6 +6,20 @@ const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const { sendOrderConfirmationEmail, sendOrderStatusEmail, sendLowStockAlert } = require("../utils/emailService");
 
+const restockOrderItems = async (order) => {
+  for (const item of order.items) {
+    if (!item.productId) {
+      continue;
+    }
+
+    const product = await Product.findById(item.productId);
+    if (product && product.stock != null) {
+      product.stock += item.qty;
+      await product.save();
+    }
+  }
+};
+
 /* =================================================
    🛒 PLACE CART ORDER (USER)
    ================================================= */
@@ -312,6 +326,70 @@ router.patch("/status/:id", async (req, res) => {
     res.json({ message: "Order status updated successfully", order: updatedOrder, emailSent: emailResult.success });
   } catch (err) {
     console.error("Status update error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+/* =================================================
+   ❌ CANCEL ORDER (USER)
+   ================================================= */
+router.patch("/cancel/:id", async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    if (String(order.userId) !== String(userId)) {
+      return res.status(403).json({ error: "You can only cancel your own orders" });
+    }
+
+    const currentStatus = order.orderStatus || "PLACED";
+    const cancellableStatuses = ["PLACED", "CONFIRMED"];
+
+    if (!cancellableStatuses.includes(currentStatus)) {
+      return res.status(400).json({
+        error: `Order cannot be cancelled once it is ${currentStatus.replaceAll("_", " ")}`,
+      });
+    }
+
+    await restockOrderItems(order);
+
+    const updatedOrder = await Order.findByIdAndUpdate(
+      req.params.id,
+      {
+        $set: { orderStatus: "CANCELLED" },
+        $push: {
+          trackingEvents: {
+            status: "CANCELLED",
+            note: "Cancelled by customer",
+            updatedBy: order.userId || null,
+          },
+        },
+      },
+      { new: true }
+    ).populate("items.productId", "name price image");
+
+    const emailResult = await sendOrderStatusEmail(
+      updatedOrder.customer,
+      updatedOrder._id,
+      "CANCELLED",
+      "Cancelled by customer"
+    );
+
+    res.json({
+      message: "Order cancelled successfully",
+      order: updatedOrder,
+      emailSent: emailResult.success,
+    });
+  } catch (err) {
+    console.error("User cancel order error:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
