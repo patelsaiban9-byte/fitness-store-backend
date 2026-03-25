@@ -2,6 +2,7 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const mongoose = require("mongoose");
 const Feedback = require("../models/feedback");
+const { sendFeedbackThankYouEmail } = require("../utils/emailService");
 
 const router = express.Router();
 
@@ -64,6 +65,17 @@ router.post("/", async (req, res) => {
 
     const feedback = new Feedback(doc);
     await feedback.save();
+
+    // Do not block feedback submission if email delivery fails.
+    const emailResult = await sendFeedbackThankYouEmail({
+      userName: finalUserName,
+      userEmail: finalUserEmail,
+      rating: safeRating,
+    });
+
+    if (!emailResult.success) {
+      console.warn("Feedback submitted but acknowledgment email failed:", emailResult.error);
+    }
 
     res.status(201).json({ message: "Feedback submitted successfully", feedback });
   } catch (error) {

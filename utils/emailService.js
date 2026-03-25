@@ -397,10 +397,86 @@ const sendReturnStatusEmail = async (returnData) => {
   }
 };
 
+// Send feedback acknowledgment email to user
+const sendFeedbackThankYouEmail = async (feedbackData) => {
+  const { userName, userEmail, rating } = feedbackData;
+
+  try {
+    const submittedOn = new Date().toLocaleString();
+    const safeRating = Math.max(1, Math.min(5, Number(rating) || 1));
+    const stars = "★".repeat(safeRating) + "☆".repeat(5 - safeRating);
+    const supportEmail = process.env.SUPPORT_EMAIL || process.env.EMAIL_USER || "support@fitnessstore.com";
+
+    const htmlContent = `
+      <div style="font-family: 'Segoe UI', Tahoma, sans-serif; max-width: 640px; margin: 0 auto; background: linear-gradient(135deg, #eef6ff 0%, #f7fff1 100%); padding: 24px;">
+        <div style="background-color: #ffffff; padding: 0; border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,0.08); overflow: hidden;">
+          <div style="background: linear-gradient(90deg, #0077b6 0%, #00a896 100%); padding: 18px 22px;">
+            <p style="margin: 0; color: #e9f8ff; font-size: 13px; letter-spacing: 0.5px; text-transform: uppercase;">Fitness Store Admin</p>
+            <h2 style="margin: 6px 0 0; color: #ffffff; font-size: 24px;">Thank You For Your Feedback</h2>
+          </div>
+
+          <div style="padding: 24px;">
+            <p style="color: #213547; font-size: 16px; margin-top: 0;">Hello <strong>${userName}</strong>,</p>
+
+            <p style="color: #394b59; font-size: 14px; line-height: 1.7; margin: 0 0 14px;">
+              Thank you for sharing your experience with us. Your feedback helps our admin team improve product quality, delivery flow, and support for every customer.
+            </p>
+
+            <div style="background: #f0f9ff; border: 1px solid #cae9ff; border-radius: 10px; padding: 14px 16px; margin: 18px 0;">
+              <p style="margin: 0; color: #0b4f6c; font-size: 13px; text-transform: uppercase; letter-spacing: 0.3px;"><strong>Feedback Summary</strong></p>
+              <p style="margin: 8px 0 0; color: #1f2937; font-size: 15px;">Rating: <strong>${safeRating}/5</strong></p>
+              <p style="margin: 6px 0 0; color: #f59e0b; font-size: 20px; letter-spacing: 2px;">${stars}</p>
+              <p style="margin: 8px 0 0; color: #4b5563; font-size: 13px;">Submitted on: ${submittedOn}</p>
+            </div>
+
+            <div style="background: #f6fff8; border-left: 4px solid #22c55e; border-radius: 6px; padding: 12px 14px; margin: 18px 0;">
+              <p style="margin: 0; color: #14532d; font-size: 13px;"><strong>What happens next?</strong></p>
+              <p style="margin: 8px 0 0; color: #166534; font-size: 14px; line-height: 1.6;">
+                Our team reviews feedback regularly and uses it to improve your shopping experience.
+              </p>
+            </div>
+
+            <p style="color: #374151; font-size: 14px; line-height: 1.7; margin: 0 0 10px;">
+              Need help right now? Contact us at <strong>${supportEmail}</strong>.
+            </p>
+
+            <p style="color: #111827; font-size: 14px; margin: 16px 0 0;">
+              Regards,<br>
+              <strong>Admin Team</strong><br>
+              Fitness Store
+            </p>
+          </div>
+
+          <div style="padding: 14px 22px; background-color: #f8fafc; border-top: 1px solid #e5e7eb;">
+            <p style="margin: 0; color: #6b7280; font-size: 12px; text-align: center;">
+              This is an automated acknowledgment email for your feedback submission.
+            </p>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER || "noreply@fitnessstore.com",
+      to: userEmail,
+      subject: "Thank you for your feedback - Fitness Store",
+      html: htmlContent,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log("✅ Feedback thank-you email sent:", info.response);
+    return { success: true, message: "Email sent successfully" };
+  } catch (error) {
+    console.error("❌ Error sending feedback thank-you email:", error);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   sendOrderConfirmationEmail,
   sendOrderStatusEmail,
   sendLowStockAlert,
   sendReturnRequestEmail,
   sendReturnStatusEmail,
+  sendFeedbackThankYouEmail,
 };
