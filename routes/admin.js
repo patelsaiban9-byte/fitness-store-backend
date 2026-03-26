@@ -1,12 +1,37 @@
 const express = require("express");
 const router = express.Router();
 const Order = require("../models/order");
+const User = require("../models/user");
 const jwt = require("jsonwebtoken");
 const PDFDocument = require("pdfkit");
 const { createCanvas } = require("canvas");
 const ChartJS = require("chart.js");
 
 const FIXED_ADMIN_EMAIL = "saiban@gmail.com";
+
+const verifyAdminAccess = (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    res.status(401).json({ message: "No token provided" });
+    return null;
+  }
+
+  try {
+    const token = authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY || "defaultsecret");
+    const isAdmin = decoded?.role === "admin" || decoded?.email === FIXED_ADMIN_EMAIL;
+
+    if (!isAdmin) {
+      res.status(403).json({ message: "Access denied: Admins only" });
+      return null;
+    }
+
+    return decoded;
+  } catch (error) {
+    res.status(401).json({ message: "Invalid or expired token" });
+    return null;
+  }
+};
 
 const getPeriodStartDate = (period) => {
   const now = new Date();
@@ -647,6 +672,92 @@ router.get("/reports-pdf", async (req, res) => {
   } catch (error) {
     console.error("❌ Error generating PDF report:", error);
     res.status(500).json({ message: "Failed to generate PDF report" });
+  }
+});
+
+// User Management: View/Search users
+router.get("/users", async (req, res) => {
+  try {
+    const admin = verifyAdminAccess(req, res);
+    if (!admin) return;
+
+    const search = String(req.query.search || "").trim();
+    const query = { role: { $ne: "admin" } };
+
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const users = await User.find(query)
+      .select("-password -passwordResetOtp -passwordResetOtpExpiresAt")
+      .sort({ createdAt: -1, _id: -1 });
+
+    res.status(200).json(users);
+  } catch (error) {
+    console.error("❌ Error fetching users:", error);
+    res.status(500).json({ message: "Failed to fetch users" });
+  }
+});
+
+// User Management: Activate/Deactivate user
+router.patch("/users/:id/status", async (req, res) => {
+  try {
+    const admin = verifyAdminAccess(req, res);
+    if (!admin) return;
+
+    const { isActive } = req.body;
+    if (typeof isActive !== "boolean") {
+      return res.status(400).json({ message: "isActive (boolean) is required" });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.role === "admin") {
+      return res.status(403).json({ message: "Admin account cannot be modified" });
+    }
+
+    user.isActive = isActive;
+    await user.save();
+
+    const safeUser = await User.findById(req.params.id)
+      .select("-password -passwordResetOtp -passwordResetOtpExpiresAt");
+
+    res.status(200).json({
+      message: isActive ? "User activated successfully" : "User deactivated successfully",
+      user: safeUser,
+    });
+  } catch (error) {
+    console.error("❌ Error updating user status:", error);
+    res.status(500).json({ message: "Failed to update user status" });
+  }
+});
+
+// User Management: Delete user
+router.delete("/users/:id", async (req, res) => {
+  try {
+    const admin = verifyAdminAccess(req, res);
+    if (!admin) return;
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.role === "admin") {
+      return res.status(403).json({ message: "Admin account cannot be deleted" });
+    }
+
+    await User.findByIdAndDelete(req.params.id);
+    res.status(200).json({ message: "User deleted successfully" });
+  } catch (error) {
+    console.error("❌ Error deleting user:", error);
+    res.status(500).json({ message: "Failed to delete user" });
   }
 });
 

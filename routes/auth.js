@@ -68,6 +68,10 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials (email)" });
     }
 
+    if (user.isActive === false) {
+      return res.status(403).json({ message: "Your account is deactivated. Please contact admin." });
+    }
+
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid credentials (password)" });
