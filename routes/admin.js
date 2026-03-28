@@ -6,8 +6,40 @@ const jwt = require("jsonwebtoken");
 const PDFDocument = require("pdfkit");
 const { createCanvas } = require("canvas");
 const ChartJS = require("chart.js");
+const transporter = require("../config/mailer");
 
 const FIXED_ADMIN_EMAIL = "saiban@gmail.com";
+
+const ACCOUNT_SUPPORT_EMAIL = process.env.ACCOUNT_SUPPORT_EMAIL || "admin@gmail.com";
+const ACCOUNT_SUPPORT_PHONE = process.env.ACCOUNT_SUPPORT_PHONE || "9904198346";
+
+const sendAccountStatusUpdateEmail = async (user, isActive) => {
+  if (!user?.email) return;
+
+  const statusText = isActive ? "activated" : "deactivated";
+  const greetingName = user.name || "User";
+  const subject = `Your account has been ${statusText}`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto; line-height: 1.6;">
+      <h2 style="margin-bottom: 8px;">Account Status Update</h2>
+      <p>Hello ${greetingName},</p>
+      <p>Your account has been <strong>${statusText}</strong> by the admin team.</p>
+      <p>If you have any questions, please contact admin support:</p>
+      <ul>
+        <li>Email: <a href="mailto:${ACCOUNT_SUPPORT_EMAIL}">${ACCOUNT_SUPPORT_EMAIL}</a></li>
+        <li>Phone: ${ACCOUNT_SUPPORT_PHONE}</li>
+      </ul>
+      <p>Thank you,<br/>Fitness Store Team</p>
+    </div>
+  `;
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_USER || "noreply@fitnessstore.com",
+    to: user.email,
+    subject,
+    html,
+  });
+};
 
 const verifyAdminAccess = (req, res) => {
   const authHeader = req.headers.authorization;
@@ -725,12 +757,21 @@ router.patch("/users/:id/status", async (req, res) => {
     user.isActive = isActive;
     await user.save();
 
+    let emailNotificationSent = false;
+    try {
+      await sendAccountStatusUpdateEmail(user, isActive);
+      emailNotificationSent = true;
+    } catch (mailErr) {
+      console.error("⚠️ Failed to send account status email:", mailErr.message);
+    }
+
     const safeUser = await User.findById(req.params.id)
       .select("-password -passwordResetOtp -passwordResetOtpExpiresAt");
 
     res.status(200).json({
       message: isActive ? "User activated successfully" : "User deactivated successfully",
       user: safeUser,
+      emailNotificationSent,
     });
   } catch (error) {
     console.error("❌ Error updating user status:", error);
