@@ -1,4 +1,84 @@
 const transporter = require("../config/mailer");
+const PDFDocument = require("pdfkit");
+
+const createInvoicePdfBuffer = (orderData) => {
+  const { customer, orderId, items = [], totalAmount, createdAt, paymentMethod, paymentStatus } = orderData;
+
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ margin: 40, size: "A4" });
+      const chunks = [];
+
+      doc.on("data", (chunk) => chunks.push(chunk));
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
+      doc.on("error", reject);
+
+      doc.fontSize(18).font("Helvetica-Bold").text("Fitness Store", 40, 40);
+      doc.fontSize(11).font("Helvetica").text("Order Invoice", 40, 64);
+
+      doc.fontSize(18).font("Helvetica-Bold").text("INVOICE", 0, 40, { align: "right" });
+      doc.fontSize(10).font("Helvetica").text(`Invoice ID: ${orderId}`, { align: "right" });
+      doc.text(`Date: ${new Date(createdAt || Date.now()).toLocaleString()}`, { align: "right" });
+
+      doc.moveDown(1.5);
+
+      doc.fontSize(12).font("Helvetica-Bold").text("Bill To");
+      doc.fontSize(10).font("Helvetica");
+      doc.text(customer?.name || "-");
+      doc.text(customer?.email || "-");
+      doc.text(customer?.phone || "-");
+      doc.text(customer?.address || "-");
+      doc.text(`Pincode: ${customer?.pincode || "-"}`);
+      if (customer?.landmark) {
+        doc.text(`Landmark: ${customer.landmark}`);
+      }
+
+      doc.moveDown(1);
+      doc.fontSize(11).font("Helvetica-Bold").text("Order Summary");
+      doc.fontSize(10).font("Helvetica");
+      doc.text(`Payment Method: ${paymentMethod || "COD"}`);
+      doc.text(`Payment Status: ${paymentStatus || "PENDING"}`);
+
+      doc.moveDown(1);
+
+      const tableTop = doc.y + 4;
+      const itemX = 40;
+      const qtyX = 300;
+      const priceX = 360;
+      const totalX = 450;
+
+      doc.fontSize(11).font("Helvetica-Bold");
+      doc.text("Item", itemX, tableTop);
+      doc.text("Qty", qtyX, tableTop);
+      doc.text("Price", priceX, tableTop);
+      doc.text("Total", totalX, tableTop);
+
+      doc.moveTo(40, tableTop + 16).lineTo(555, tableTop + 16).stroke("#d1d5db");
+
+      let y = tableTop + 24;
+      doc.fontSize(10).font("Helvetica");
+      items.forEach((item) => {
+        const lineTotal = Number(item.price || 0) * Number(item.qty || 0);
+        doc.text(String(item.name || "-"), itemX, y, { width: 240 });
+        doc.text(String(item.qty || 0), qtyX, y);
+        doc.text(`Rs.${Number(item.price || 0).toFixed(2)}`, priceX, y);
+        doc.text(`Rs.${lineTotal.toFixed(2)}`, totalX, y);
+        y += 22;
+      });
+
+      doc.moveTo(40, y + 2).lineTo(555, y + 2).stroke("#d1d5db");
+      doc.fontSize(12).font("Helvetica-Bold").text(`Grand Total: Rs.${Number(totalAmount || 0).toFixed(2)}`, 360, y + 10);
+
+      doc.moveDown(3);
+      doc.fontSize(9).font("Helvetica").fillColor("#6b7280");
+      doc.text("This is a system-generated invoice from Fitness Store.", 40, doc.y + 10);
+
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
 
 // Send order confirmation email
 const sendOrderConfirmationEmail = async (orderData) => {
@@ -78,11 +158,20 @@ const sendOrderConfirmationEmail = async (orderData) => {
       </div>
     `;
 
+    const invoicePdfBuffer = await createInvoicePdfBuffer(orderData);
+
     const mailOptions = {
       from: process.env.EMAIL_USER || "noreply@fitnessstore.com",
       to: customer.email,
       subject: `Order Confirmation - Order #${orderId}`,
       html: htmlContent,
+      attachments: [
+        {
+          filename: `invoice-${orderId}.pdf`,
+          content: invoicePdfBuffer,
+          contentType: "application/pdf",
+        },
+      ],
     };
 
     const info = await transporter.sendMail(mailOptions);

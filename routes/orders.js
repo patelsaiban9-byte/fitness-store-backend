@@ -137,6 +137,9 @@ router.post("/cart", async (req, res) => {
       orderId: newOrder._id,
       items,
       totalAmount,
+      createdAt: newOrder.createdAt,
+      paymentMethod: newOrder.paymentMethod,
+      paymentStatus: newOrder.paymentStatus,
     });
 
     console.log("📧 Email service result:", emailResult);
