@@ -25,6 +25,8 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({ storage });
 
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 // ✅ Helper to ensure image is full URL (backward compatibility with old paths)
 const ensureFullImageUrl = (imagePath, req) => {
   if (!imagePath) return "";
@@ -50,7 +52,13 @@ const ensureFullImageUrl = (imagePath, req) => {
 // ✅ Get all products (fix image URLs to be full URLs)
 router.get("/", async (req, res) => {
   try {
-    const products = await Product.find();
+    const category = (req.query.category || "").trim();
+    const normalizedCategory = escapeRegex(category);
+    const filter = category
+      ? { category: { $regex: `^${normalizedCategory}$`, $options: "i" } }
+      : {};
+
+    const products = await Product.find(filter);
     
     // ✅ Fix any relative paths to full URLs before sending
     const productsWithFullUrls = products.map(product => ({
@@ -58,6 +66,31 @@ router.get("/", async (req, res) => {
       image: product.image ? ensureFullImageUrl(product.image, req) : product.image
     }));
     
+    res.json(productsWithFullUrls);
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ✅ Get products by category
+router.get("/category/:category", async (req, res) => {
+  try {
+    const category = (req.params.category || "").trim();
+    if (!category) {
+      return res.status(400).json({ message: "Category is required" });
+    }
+
+    const normalizedCategory = escapeRegex(category);
+
+    const products = await Product.find({
+      category: { $regex: `^${normalizedCategory}$`, $options: "i" },
+    });
+
+    const productsWithFullUrls = products.map((product) => ({
+      ...product.toObject(),
+      image: product.image ? ensureFullImageUrl(product.image, req) : product.image,
+    }));
+
     res.json(productsWithFullUrls);
   } catch (err) {
     res.status(500).json({ message: "Server error" });
