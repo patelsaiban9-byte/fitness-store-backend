@@ -17,6 +17,7 @@ const uploadRoutes = require("./routes/upload");
 const adminRoutes = require("./routes/admin");
 const returnRoutes = require("./routes/returns");
 const feedbackRoutes = require("./routes/feedback");
+const wishlistRoutes = require("./routes/wishlist");
 
 // ✅ Middleware
 app.use(express.json());
@@ -67,6 +68,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/returns", returnRoutes);
 app.use("/api/feedback", feedbackRoutes);
+app.use("/api/wishlist", wishlistRoutes);
 
 // ✅ Default Route
 app.get("/", (req, res) => {
