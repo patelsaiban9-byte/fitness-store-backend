@@ -4,7 +4,20 @@ const Order = require("../models/order");
 const Product = require("../models/product");
 const PDFDocument = require("pdfkit");
 const fs = require("fs");
+const crypto = require("crypto");
+const Razorpay = require("razorpay");
 const { sendOrderConfirmationEmail, sendOrderStatusEmail, sendLowStockAlert } = require("../utils/emailService");
+
+const razorpayKeyId = process.env.RAZORPAY_KEY_ID;
+const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET;
+
+const razorpay =
+  razorpayKeyId && razorpayKeySecret
+    ? new Razorpay({
+        key_id: razorpayKeyId,
+        key_secret: razorpayKeySecret,
+      })
+    : null;
 
 const restockOrderItems = async (order) => {
   for (const item of order.items) {
@@ -20,6 +33,129 @@ const restockOrderItems = async (order) => {
   }
 };
 
+const createOrderWithStockAndEmail = async ({
+  customer,
+  items,
+  totalAmount,
+  userId,
+  paymentMethod = "COD",
+  paymentStatus = "PENDING",
+  razorpayOrderId = null,
+  razorpayPaymentId = null,
+  razorpaySignature = null,
+}) => {
+  if (
+    !customer ||
+    !customer.name ||
+    !customer.phone ||
+    !customer.email ||
+    !customer.address ||
+    !customer.pincode ||
+    !items ||
+    items.length === 0
+  ) {
+    const error = new Error("Invalid cart order data - email is required");
+    error.status = 400;
+    throw error;
+  }
+
+  const stockIssues = [];
+  for (const item of items) {
+    if (item.productId) {
+      const product = await Product.findById(item.productId);
+      console.log(`📦 Checking stock for ${item.name}:`, {
+        productId: item.productId,
+        foundProduct: !!product,
+        currentStock: product?.stock,
+        requestedQty: item.qty,
+        stockTracked: product?.stock != null,
+      });
+
+      if (!product) {
+        stockIssues.push(`Product "${item.name}" not found`);
+      } else if (product.stock != null && product.stock < item.qty) {
+        console.log(`❌ INSUFFICIENT STOCK: ${product.name} - Available: ${product.stock}, Requested: ${item.qty}`);
+        stockIssues.push(
+          `"${product.name}" - Only ${product.stock} units available, but ${item.qty} requested`
+        );
+      } else {
+        console.log(`✅ Stock OK for ${product.name}`);
+      }
+    }
+  }
+
+  if (stockIssues.length > 0) {
+    const error = new Error("Insufficient stock");
+    error.status = 400;
+    error.details = stockIssues;
+    throw error;
+  }
+
+  const newOrder = new Order({
+    customer,
+    userId,
+    items,
+    totalAmount,
+    paymentMethod,
+    paymentStatus,
+    razorpayOrderId,
+    razorpayPaymentId,
+    razorpaySignature,
+    orderStatus: "PLACED",
+    trackingEvents: [
+      {
+        status: "PLACED",
+        note: "Order placed",
+        updatedBy: userId || null,
+      },
+    ],
+  });
+
+  await newOrder.save();
+
+  for (const item of items) {
+    if (item.productId) {
+      const product = await Product.findById(item.productId);
+      if (product && product.stock != null) {
+        product.stock -= item.qty;
+        await product.save();
+
+        if (product.stock <= product.minimumStockThreshold && product.stock > 0) {
+          console.log(`⚠️ Low stock detected for ${product.name}: ${product.stock} units remaining`);
+          await sendLowStockAlert({
+            productName: product.name,
+            productId: product._id,
+            currentStock: product.stock,
+            minimumThreshold: product.minimumStockThreshold,
+          });
+        } else if (product.stock === 0) {
+          console.log(`🚫 ${product.name} is now OUT OF STOCK`);
+          await sendLowStockAlert({
+            productName: product.name,
+            productId: product._id,
+            currentStock: product.stock,
+            minimumThreshold: product.minimumStockThreshold,
+          });
+        }
+      }
+    }
+  }
+
+  const emailResult = await sendOrderConfirmationEmail({
+    customer,
+    orderId: newOrder._id,
+    items,
+    totalAmount,
+    createdAt: newOrder.createdAt,
+    paymentMethod: newOrder.paymentMethod,
+    paymentStatus: newOrder.paymentStatus,
+  });
+
+  console.log("📧 Email service result:", emailResult);
+
+  return { newOrder, emailResult };
+};
+
 /* =================================================
    🛒 PLACE CART ORDER (USER)
    ================================================= */
@@ -33,116 +169,19 @@ router.post("/cart", async (req, res) => {
       paymentStatus,
     } = req.body;
 
-    if (
-      !customer ||
-      !customer.name ||
-      !customer.phone ||
-      !customer.email ||
-      !customer.address ||
-      !customer.pincode ||
-      !items ||
-      items.length === 0
-    ) {
-      return res.status(400).json({ error: "Invalid cart order data - email is required" });
-    }
-
-    // ✅ CHECK STOCK AVAILABILITY FOR ALL ITEMS (only if stock is being tracked)
-    const stockIssues = [];
-    for (const item of items) {
-      if (item.productId) {
-        const product = await Product.findById(item.productId);
-        console.log(`📦 Checking stock for ${item.name}:`, {
-          productId: item.productId,
-          foundProduct: !!product,
-          currentStock: product?.stock,
-          requestedQty: item.qty,
-          stockTracked: product?.stock != null
-        });
-        
-        if (!product) {
-          stockIssues.push(`Product "${item.name}" not found`);
-        } else if (product.stock != null && product.stock < item.qty) {
-          // Only enforce stock limits if stock is actively managed (not undefined/null)
-          console.log(`❌ INSUFFICIENT STOCK: ${product.name} - Available: ${product.stock}, Requested: ${item.qty}`);
-          stockIssues.push(
-            `"${product.name}" - Only ${product.stock} units available, but ${item.qty} requested`
-          );
-        } else {
-          console.log(`✅ Stock OK for ${product.name}`);
-        }
-      }
-    }
-
-    if (stockIssues.length > 0) {
-      return res.status(400).json({ 
-        error: "Insufficient stock", 
-        details: stockIssues 
+    if (paymentMethod && paymentMethod !== "COD") {
+      return res.status(400).json({
+        error: "Online payments must use /api/orders/payment/verify",
       });
     }
-
-    const newOrder = new Order({
+    const { newOrder, emailResult } = await createOrderWithStockAndEmail({
       customer,
-      // optional userId (if frontend provides it)
-      userId: req.body.userId,
       items,
       totalAmount,
+      userId: req.body.userId,
       paymentMethod: paymentMethod || "COD",
       paymentStatus: paymentStatus || "PENDING",
-      orderStatus: "PLACED",
-      trackingEvents: [
-        {
-          status: "PLACED",
-          note: "Order placed",
-          updatedBy: req.body.userId || null,
-        },
-      ],
     });
-
-    await newOrder.save();
-
-    // ✅ DECREASE STOCK FOR EACH ITEM AND CHECK FOR LOW STOCK (only if stock is tracked)
-    for (const item of items) {
-      if (item.productId) {
-        const product = await Product.findById(item.productId);
-        if (product && product.stock != null) {
-          // Only manage stock if it's actively tracked (not undefined/null)
-          product.stock -= item.qty;
-          await product.save();
-
-          // ✅ CHECK IF STOCK IS NOW BELOW MINIMUM THRESHOLD
-          if (product.stock <= product.minimumStockThreshold && product.stock > 0) {
-            console.log(`⚠️ Low stock detected for ${product.name}: ${product.stock} units remaining`);
-            await sendLowStockAlert({
-              productName: product.name,
-              productId: product._id,
-              currentStock: product.stock,
-              minimumThreshold: product.minimumStockThreshold,
-            });
-          } else if (product.stock === 0) {
-            console.log(`🚫 ${product.name} is now OUT OF STOCK`);
-            await sendLowStockAlert({
-              productName: product.name,
-              productId: product._id,
-              currentStock: product.stock,
-              minimumThreshold: product.minimumStockThreshold,
-            });
-          }
-        }
-      }
-    }
-
-    // Send confirmation email
-    const emailResult = await sendOrderConfirmationEmail({
-      customer,
-      orderId: newOrder._id,
-      items,
-      totalAmount,
-      createdAt: newOrder.createdAt,
-      paymentMethod: newOrder.paymentMethod,
-      paymentStatus: newOrder.paymentStatus,
-    });
-
-    console.log("📧 Email service result:", emailResult);
 
     res.status(201).json({
       message: "Cart order placed successfully",
@@ -151,7 +190,112 @@ router.post("/cart", async (req, res) => {
     });
   } catch (err) {
     console.error("Cart order error:", err);
+    if (err.status === 400) {
+      return res.status(400).json({ error: err.message, details: err.details });
+    }
     res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+/* =================================================
+   💳 GET RAZORPAY PUBLIC KEY
+   ================================================= */
+router.get("/payment/key", (req, res) => {
+  if (!razorpayKeyId) {
+    return res.status(500).json({ error: "Razorpay key is not configured" });
+  }
+
+  res.json({ key: razorpayKeyId });
+});
+
+/* =================================================
+   💳 CREATE RAZORPAY ORDER
+   ================================================= */
+router.post("/payment/create-order", async (req, res) => {
+  try {
+    if (!razorpay) {
+      return res.status(500).json({ error: "Razorpay is not configured" });
+    }
+
+    const { amount, receipt } = req.body;
+    const parsedAmount = Number(amount);
+
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ error: "Invalid amount" });
+    }
+
+    const razorpayOrder = await razorpay.orders.create({
+      amount: Math.round(parsedAmount * 100),
+      currency: "INR",
+      receipt: receipt || `receipt_${Date.now()}`,
+      payment_capture: 1,
+    });
+
+    res.json(razorpayOrder);
+  } catch (err) {
+    console.error("Create Razorpay order error:", err);
+    res.status(500).json({ error: "Unable to create Razorpay order" });
+  }
+});
+
+/* =================================================
+   ✅ VERIFY RAZORPAY PAYMENT AND PLACE ORDER
+   ================================================= */
+router.post("/payment/verify", async (req, res) => {
+  try {
+    if (!razorpayKeySecret) {
+      return res.status(500).json({ error: "Razorpay secret is not configured" });
+    }
+
+    const {
+      customer,
+      items,
+      totalAmount,
+      paymentMethod,
+      userId,
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+    } = req.body;
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ error: "Missing Razorpay payment fields" });
+    }
+
+    const generatedSignature = crypto
+      .createHmac("sha256", razorpayKeySecret)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest("hex");
+
+    if (generatedSignature !== razorpay_signature) {
+      return res.status(400).json({ error: "Invalid payment signature" });
+    }
+
+    const safeMethod = ["UPI", "CARD"].includes(paymentMethod) ? paymentMethod : "UPI";
+
+    const { newOrder, emailResult } = await createOrderWithStockAndEmail({
+      customer,
+      items,
+      totalAmount,
+      userId,
+      paymentMethod: safeMethod,
+      paymentStatus: "PAID",
+      razorpayOrderId: razorpay_order_id,
+      razorpayPaymentId: razorpay_payment_id,
+      razorpaySignature: razorpay_signature,
+    });
+
+    res.status(201).json({
+      message: "Payment verified and order placed successfully",
+      orderId: newOrder._id,
+      emailSent: emailResult.success,
+    });
+  } catch (err) {
+    console.error("Verify payment error:", err);
+    if (err.status === 400) {
+      return res.status(400).json({ error: err.message, details: err.details });
+    }
+    res.status(500).json({ error: "Unable to verify payment" });
   }
 });
 

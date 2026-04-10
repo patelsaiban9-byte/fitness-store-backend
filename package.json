@@ -26,9 +26,11 @@
     "multer-storage-cloudinary": "^4.0.0",
     "nodemailer": "^7.0.12",
     "path": "^0.12.7",
-    "pdfkit": "^0.17.2"
+    "pdfkit": "^0.17.2",
+    "razorpay": "^2.9.6"
   },
   "devDependencies": {
+    "@ljharb/tsconfig": "^0.3.2",
     "nodemon": "^3.1.10"
   }
 }
