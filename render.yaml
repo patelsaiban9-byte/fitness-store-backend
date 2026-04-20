@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: fitness-store-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_MODULES_CACHE
+        value: "true"
