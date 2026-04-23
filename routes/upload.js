@@ -1,29 +1,26 @@
 const express = require("express");
 const multer = require("multer");
-const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const cloudinary = require("../config/cloudinary");
 
 const router = express.Router();
 
-// ✅ Configure Cloudinary storage for Multer
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: "fitness-store", // Folder name in Cloudinary
-    allowed_formats: ["jpg", "jpeg", "png", "gif", "webp"],
-    transformation: [
-      {
-        width: 1000,
-        height: 1000,
-        crop: "limit", // Limit dimensions, maintain aspect ratio
-        quality: "auto", // Automatic quality optimization
-        fetch_format: "auto", // Auto convert to WebP when supported
-      },
-    ],
-  },
-});
+// ✅ Configure Multer with memory storage
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
+    const extname = allowedTypes.test(file.originalname.toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
 
-const upload = multer({ storage });
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'));
+    }
+  }
+});
 
 // ✅ POST route for image upload to Cloudinary
 router.post("/", upload.single("image"), async (req, res) => {
@@ -37,20 +34,43 @@ router.post("/", upload.single("image"), async (req, res) => {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    // ✅ Cloudinary returns secure_url in req.file.path
-    const imageUrl = req.file.path;
-    console.log("✅ Image uploaded to Cloudinary:", imageUrl);
-    console.log("📊 File details:", {
-      filename: req.file.filename,
-      path: req.file.path,
+    console.log("📁 File details:", {
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
       size: req.file.size,
     });
 
+    // ✅ Upload to Cloudinary manually
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.v2.uploader.upload_stream(
+        {
+          folder: "fitness-store",
+          allowed_formats: ["jpg", "jpeg", "png", "gif", "webp"],
+          transformation: [
+            { width: 1000, height: 1000, crop: "limit", quality: "auto", fetch_format: "auto" }
+          ]
+        },
+        (error, result) => {
+          if (error) {
+            console.error("❌ Cloudinary upload error:", error);
+            reject(error);
+          } else {
+            console.log("✅ Cloudinary upload success:", result.secure_url);
+            resolve(result);
+          }
+        }
+      );
+      
+      stream.end(req.file.buffer);
+    });
+
+    const imageUrl = result.secure_url;
+    console.log("✅ Image uploaded to Cloudinary:", imageUrl);
+
     res.status(200).json({ imageUrl });
   } catch (error) {
-    console.error("❌ Cloudinary upload error:", error);
+    console.error("❌ Upload error:", error);
     console.error("❌ Error details:", error.message);
-    console.error("❌ Error stack:", error.stack);
     res.status(500).json({ message: "Failed to upload image", error: error.message });
   }
 });

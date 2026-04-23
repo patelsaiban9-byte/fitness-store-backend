@@ -1,4 +1,4 @@
-const cloudinary = require('cloudinary').v2;
+const cloudinary = require('cloudinary');
 
 // Configure Cloudinary
 const config = {
@@ -19,7 +19,7 @@ if (!config.cloud_name || !config.api_key || !config.api_secret) {
   console.log('✅ Cloudinary configured successfully!');
 }
 
-cloudinary.config(config);
+cloudinary.v2.config(config);
 
 module.exports = cloudinary;
 
