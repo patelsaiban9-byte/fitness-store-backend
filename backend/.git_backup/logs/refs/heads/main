@@ -1,0 +1,49 @@
+cd6caca5ae1411f89c351576b659c3ef8e313e94 8312046ac8eaed1482b721f4a5ba88b12bfc3970 Saiban Patel <patelsaiban9@gmail.com> 1761986932 +0530	commit: Initial commit - React app with protected routes
+8312046ac8eaed1482b721f4a5ba88b12bfc3970 8312046ac8eaed1482b721f4a5ba88b12bfc3970 Saiban Patel <patelsaiban9@gmail.com> 1761986933 +0530	Branch: renamed refs/heads/main to refs/heads/main
+8312046ac8eaed1482b721f4a5ba88b12bfc3970 55ad58736bd5570efb35680d3143a55e40647435 Saiban Patel <patelsaiban9@gmail.com> 1761988091 +0530	commit: Initial commit - React app with protected routes
+55ad58736bd5570efb35680d3143a55e40647435 55ad58736bd5570efb35680d3143a55e40647435 Saiban Patel <patelsaiban9@gmail.com> 1761988092 +0530	Branch: renamed refs/heads/main to refs/heads/main
+55ad58736bd5570efb35680d3143a55e40647435 33e705ae97caec7f6e279c2e8c6fe142093a1511 Saiban Patel <patelsaiban9@gmail.com> 1761988356 +0530	commit: Added /api/admin route for reports
+33e705ae97caec7f6e279c2e8c6fe142093a1511 bebf9f55cc9ce6f1bdf8f0e25de8fea01b0f0769 Saiban Patel <patelsaiban9@gmail.com> 1761992635 +0530	commit: Add admin routes
+bebf9f55cc9ce6f1bdf8f0e25de8fea01b0f0769 fd466c14bc7d4f685dff03658896b15ada86da16 Saiban Patel <patelsaiban9@gmail.com> 1761994329 +0530	commit: style: Finalizing component design and navbar full-width fix
+fd466c14bc7d4f685dff03658896b15ada86da16 84f8f1cb92c88e136772ee4a16edb3333e4d810c Saiban Patel <patelsaiban9@gmail.com> 1761995691 +0530	commit: Add admin reports route
+84f8f1cb92c88e136772ee4a16edb3333e4d810c 3fb4a0e996473020186c28e8826f0347aadf4d11 Saiban Patel <patelsaiban9@gmail.com> 1761997526 +0530	commit: Add admin test and reports route
+3fb4a0e996473020186c28e8826f0347aadf4d11 2e7658c8834a07e10091abff4e0da5eb22f77d66 Saiban Patel <patelsaiban9@gmail.com> 1762004278 +0530	commit: style: Finalizing component design and navbar full-width fix
+2e7658c8834a07e10091abff4e0da5eb22f77d66 589c3fcf2bf833cf98dae773b54137113494f9b6 Saiban Patel <patelsaiban9@gmail.com> 1762011326 +0530	commit: style: Finalizing component design and navbar full-width fix
+589c3fcf2bf833cf98dae773b54137113494f9b6 fe417befa65ad67e2ac4778755db4cd9e7791a18 Saiban Patel <patelsaiban9@gmail.com> 1762053270 +0530	commit: style: Finalizing component design and navbar full-width fix
+fe417befa65ad67e2ac4778755db4cd9e7791a18 1f763783f489ed314ce15358684bf77ad12da052 Saiban Patel <patelsaiban9@gmail.com> 1762060548 +0530	commit: style: Finalizing component design and navbar full-width fix
+1f763783f489ed314ce15358684bf77ad12da052 a75091bd88cd02b4434c5252dc856f731d8319f5 Saiban Patel <patelsaiban9@gmail.com> 1762222360 +0530	commit: backend changes
+a75091bd88cd02b4434c5252dc856f731d8319f5 be582fa6945a0ccc7d06d495627775c28540ab93 Saiban Patel <patelsaiban9@gmail.com> 1762223596 +0530	commit: changes
+be582fa6945a0ccc7d06d495627775c28540ab93 181068f5f9a3332b6d429393507cbd9ffec838ed Saiban Patel <patelsaiban9@gmail.com> 1765683656 +0530	commit: Cart order single-order flow + admin order view update
+181068f5f9a3332b6d429393507cbd9ffec838ed c1814b065d7e6fc01d60e3f451693109dd20783d Saiban Patel <patelsaiban9@gmail.com> 1765683783 +0530	pull origin main: Merge made by the 'ort' strategy.
+c1814b065d7e6fc01d60e3f451693109dd20783d 6f7cd8518cb0d2a4f332335b8ac1a57bfdac4957 Saiban Patel <patelsaiban9@gmail.com> 1765706349 +0530	commit: style: Finalizing component design and navbar full-width fix
+6f7cd8518cb0d2a4f332335b8ac1a57bfdac4957 ad0e1c6493a4937fd7e9c43930c867ffeed4952c Saiban Patel <patelsaiban9@gmail.com> 1765800293 +0530	commit: style: Finalizing component design and navbar full-width fix
+ad0e1c6493a4937fd7e9c43930c867ffeed4952c 6ca32b93b1db2052a023b52fd2a26c567da99071 patelsaiban9-byte <patelsaiban9@gmail.com> 1765802478 +0530	commit: changes
+6ca32b93b1db2052a023b52fd2a26c567da99071 f76d5eb912d49d495954e5f59766d015ddeada66 patelsaiban9-byte <patelsaiban9@gmail.com> 1765875952 +0530	commit: changes
+f76d5eb912d49d495954e5f59766d015ddeada66 f377d7c0cae9bf7e7d3faa2ce73e838e1ae1a5a7 patelsaiban9-byte <patelsaiban9@gmail.com> 1765877680 +0530	commit: 'changes'
+f377d7c0cae9bf7e7d3faa2ce73e838e1ae1a5a7 a198a8040bdf819f6f7e37d819d17dc5e0784c14 patelsaiban9-byte <patelsaiban9@gmail.com> 1765877708 +0530	pull: Merge made by the 'ort' strategy.
+a198a8040bdf819f6f7e37d819d17dc5e0784c14 766a5d3c982af1ee3922de348efcb97eb80e8bb1 patelsaiban9-byte <patelsaiban9@gmail.com> 1765898949 +0530	commit: changes
+766a5d3c982af1ee3922de348efcb97eb80e8bb1 70894ac33cb3b2b5bf135ff14e807ead3341d80a patelsaiban9-byte <patelsaiban9@gmail.com> 1767971152 +0530	commit: changes
+70894ac33cb3b2b5bf135ff14e807ead3341d80a abd440da180a5976913a27452ccdb8d1967f1f9d patelsaiban9-byte <patelsaiban9@gmail.com> 1768660706 +0530	commit: 'changes'
+abd440da180a5976913a27452ccdb8d1967f1f9d a35c14f281a76320645ef59436adb340a81ffeee patelsaiban9-byte <patelsaiban9@gmail.com> 1768668580 +0530	commit: 'changed'
+a35c14f281a76320645ef59436adb340a81ffeee 5792c434c719c519bbee281c315832a1a567848c patelsaiban9-byte <patelsaiban9@gmail.com> 1770974301 +0530	commit: 'update'
+5792c434c719c519bbee281c315832a1a567848c 92f2f951a57fa27853a37181b6cdcab62a8ccef2 patelsaiban9-byte <patelsaiban9@gmail.com> 1770974922 +0530	commit: 'update'
+92f2f951a57fa27853a37181b6cdcab62a8ccef2 b78bd9ef44d6fe18167efc8e7798ac59c2a5005b patelsaiban9-byte <patelsaiban9@gmail.com> 1771395645 +0530	commit: 'changes'
+b78bd9ef44d6fe18167efc8e7798ac59c2a5005b 74856857388b26d4381adc58f669812cb019c258 patelsaiban9-byte <patelsaiban9@gmail.com> 1771818365 +0530	commit: changes
+74856857388b26d4381adc58f669812cb019c258 12b22a529582973a3df390cdeaf7848ddce98c0a patelsaiban9-byte <patelsaiban9@gmail.com> 1772324431 +0530	commit: return changes
+12b22a529582973a3df390cdeaf7848ddce98c0a e26580e918027346ca8de61705f80b550f2bea88 patelsaiban9-byte <patelsaiban9@gmail.com> 1772515553 +0530	commit: final changes
+e26580e918027346ca8de61705f80b550f2bea88 1c881ec292cc1d01b645fb580b6d26d8a3346d5b patelsaiban9-byte <patelsaiban9@gmail.com> 1772783381 +0530	commit: changes
+1c881ec292cc1d01b645fb580b6d26d8a3346d5b 918d4e78f01cbd51c95656073d236fd5b2a14fdf patelsaiban9-byte <patelsaiban9@gmail.com> 1772788499 +0530	commit: cores fix
+918d4e78f01cbd51c95656073d236fd5b2a14fdf 2bc22d7cdb1cf8c0c2b0a51d7c09207c42fed773 patelsaiban9-byte <patelsaiban9@gmail.com> 1772788614 +0530	commit: changes
+2bc22d7cdb1cf8c0c2b0a51d7c09207c42fed773 bc9516a7cda85a7885ab67ce7e41c92e45107f09 patelsaiban9-byte <patelsaiban9@gmail.com> 1774160898 +0530	commit: cancle button added
+bc9516a7cda85a7885ab67ce7e41c92e45107f09 1b359c2b1482a9bd73d75199ec586f00f92db338 patelsaiban9-byte <patelsaiban9@gmail.com> 1774364281 +0530	commit: feedback page added
+1b359c2b1482a9bd73d75199ec586f00f92db338 94c498673218637260203f66502614bbcc04c7d9 patelsaiban9-byte <patelsaiban9@gmail.com> 1774431676 +0530	commit: feedback mail added
+94c498673218637260203f66502614bbcc04c7d9 6299b2fa7b6adb98c0550ff0fa7d107af4a788f2 patelsaiban9-byte <patelsaiban9@gmail.com> 1774520341 +0530	commit: user management added
+6299b2fa7b6adb98c0550ff0fa7d107af4a788f2 e1d363ff2dbc51001199517fa4a9f996022be005 patelsaiban9-byte <patelsaiban9@gmail.com> 1774710544 +0530	commit: login routes changes
+e1d363ff2dbc51001199517fa4a9f996022be005 14bc97c6eb488558a78745347a29718d937cab61 patelsaiban9-byte <patelsaiban9@gmail.com> 1774711019 +0530	commit: invoice attachment in email
+14bc97c6eb488558a78745347a29718d937cab61 30ce22fc7fd88f3fe7208395b80f65b749ed9f98 patelsaiban9-byte <patelsaiban9@gmail.com> 1775151183 +0530	commit: product update by category
+30ce22fc7fd88f3fe7208395b80f65b749ed9f98 2b2eb8827713e1374421b4d7fb75ea180025e3c8 patelsaiban9-byte <patelsaiban9@gmail.com> 1775533876 +0530	commit: wishlist page added
+2b2eb8827713e1374421b4d7fb75ea180025e3c8 45676f5d63f1ac9d881a81432bac510b72510d6c patelsaiban9-byte <patelsaiban9@gmail.com> 1775825565 +0530	commit: chore: stop tracking node_modules
+45676f5d63f1ac9d881a81432bac510b72510d6c 61b41fc7ecf19545bdf8a08185df9879dda7491b patelsaiban9-byte <patelsaiban9@gmail.com> 1775826376 +0530	commit: payment gateway added
+61b41fc7ecf19545bdf8a08185df9879dda7491b c514f19b8ea6f70d2083ba3729d58eafd52edf34 patelsaiban9-byte <patelsaiban9@gmail.com> 1775826719 +0530	commit: changes
+c514f19b8ea6f70d2083ba3729d58eafd52edf34 d68448fbef2ae18637cfc85f444b67533c634ebc patelsaiban9-byte <patelsaiban9@gmail.com> 1776689774 +0530	commit: new passkey genrate
+d68448fbef2ae18637cfc85f444b67533c634ebc 249e41ce9a5bc1e214cafb2fbaf41319fa6f383d patelsaiban9-byte <patelsaiban9@gmail.com> 1776928439 +0530	commit: bug fix

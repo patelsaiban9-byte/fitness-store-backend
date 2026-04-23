@@ -1,0 +1,273 @@
+.sales-reports-page {
+  --report-bg: #f3f5f9;
+  --report-surface: #ffffff;
+  --report-border: #eaedf3;
+  --report-text: #1f2937;
+  --report-muted: #8a94a6;
+  --report-shadow: 0 8px 26px rgba(15, 23, 42, 0.06);
+  --report-shadow-hover: 0 14px 34px rgba(15, 23, 42, 0.11);
+  --report-radius: 14px;
+  max-width: 1280px;
+  background: linear-gradient(180deg, #f9fafc 0%, var(--report-bg) 100%);
+  border-radius: 24px;
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+
+.report-page-title {
+  color: var(--report-text);
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.report-surface {
+  border: 1px solid var(--report-border);
+  border-radius: var(--report-radius);
+  background: var(--report-surface);
+  box-shadow: var(--report-shadow);
+}
+
+.report-control-card .card-body {
+  border-radius: var(--report-radius);
+  padding: 1rem 1.1rem;
+}
+
+.report-control-card h5 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 0.15rem;
+}
+
+.report-control-card .text-muted {
+  color: var(--report-muted) !important;
+}
+
+.report-period-meta {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #dbe7ff;
+  background: #eef4ff;
+  color: #1e3a8a;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.25rem 0.65rem;
+}
+
+.report-chart-period-meta {
+  margin-top: 0.1rem;
+}
+
+.report-control-card .form-select {
+  min-height: 40px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  color: #334155;
+  box-shadow: none;
+}
+
+.report-control-card .form-select:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.report-control-card .btn {
+  border: 0;
+  border-radius: 10px;
+  min-height: 40px;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  box-shadow: 0 8px 16px rgba(22, 163, 74, 0.18);
+}
+
+.report-loading {
+  color: var(--report-muted);
+  font-weight: 600;
+}
+
+.report-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.report-metric-item {
+  min-width: 0;
+}
+
+.report-metric-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.report-metric-card .card-body {
+  padding: 0.95rem 1rem;
+}
+
+.report-metric-card h6.text-muted {
+  color: var(--report-muted) !important;
+  font-size: 0.76rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.report-metric-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--report-shadow-hover);
+}
+
+.report-metric-value {
+  color: var(--report-text);
+  font-weight: 700;
+}
+
+.report-metric-highlight {
+  color: #2563eb;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.report-chart-card {
+  overflow: hidden;
+}
+
+.report-chart-card .card-body {
+  padding: 1.05rem 1.2rem 1.1rem;
+}
+
+.report-chart-title {
+  color: var(--report-text);
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.report-chart-subtitle {
+  color: var(--report-muted) !important;
+  font-size: 0.8rem;
+}
+
+.report-subchart-title {
+  color: var(--report-text);
+  font-size: 0.86rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.report-group-card {
+  border-radius: 12px;
+  overflow: hidden;
+  border-color: var(--report-border);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
+
+.report-group-card .card-header {
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
+}
+
+.report-group-card .list-group-item {
+  border-color: #f0f3f7;
+  font-size: 0.84rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.report-tooltip {
+  min-width: 190px;
+  border: 1px solid #dbe2ea;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 14px 28px rgba(2, 6, 23, 0.14);
+  padding: 0.6rem 0.75rem;
+}
+
+.report-tooltip-label {
+  color: var(--report-text);
+  font-weight: 700;
+  margin: 0 0 0.45rem;
+  font-size: 0.86rem;
+}
+
+.report-tooltip-row {
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.2rem;
+}
+
+.report-tooltip-row:last-child {
+  margin-bottom: 0;
+}
+
+.report-tooltip-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.2);
+}
+
+.report-tooltip-name {
+  color: #334155;
+  font-size: 0.82rem;
+}
+
+.report-tooltip-value {
+  color: #0f172a;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.sales-reports-page .recharts-legend-item-text {
+  color: #475569 !important;
+  font-size: 12px;
+}
+
+.sales-reports-page .recharts-cartesian-axis-tick-value tspan {
+  fill: #64748b;
+}
+
+.sales-reports-page .card {
+  backdrop-filter: blur(2px);
+}
+
+@media (max-width: 991px) {
+  .report-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .report-chart-card .card-body {
+    padding: 1rem;
+  }
+
+  .sales-reports-page {
+    border-radius: 18px;
+    padding-left: 0.9rem;
+    padding-right: 0.9rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .report-metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .report-page-title {
+    font-size: 1.35rem;
+  }
+
+  .sales-reports-page .recharts-wrapper {
+    font-size: 11px;
+  }
+
+  .report-control-card .card-body {
+    padding: 0.9rem;
+  }
+}

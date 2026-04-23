@@ -1,0 +1,43 @@
+.site-footer {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #334155 100%);
+  color: #e2e8f0;
+  border-top: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.footer-brand {
+  color: #f8fafc;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.footer-text {
+  color: #cbd5e1;
+  max-width: 34rem;
+}
+
+.footer-heading {
+  color: #f1f5f9;
+  font-size: 0.95rem;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.footer-links li + li {
+  margin-top: 0.45rem;
+}
+
+.footer-links a {
+  color: #cbd5e1;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.footer-links a:hover {
+  color: #f8fafc;
+}
+
+.footer-bottom {
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  color: #94a3b8;
+}
