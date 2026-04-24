@@ -34,6 +34,8 @@ function ProductDetail() {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ show: false, message: "", type: "info" });
+  const [selectedRating, setSelectedRating] = useState(0);
+  const [ratingSubmitting, setRatingSubmitting] = useState(false);
 
   // ✅ NEW (ONLY ADD)
   const [relatedProducts, setRelatedProducts] = useState([]);
@@ -46,31 +48,29 @@ function ProductDetail() {
   /* ===============================
      FETCH SINGLE PRODUCT (OLD)
      =============================== */
+  const fetchProduct = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/products/${id}`);
+      const data = await res.json();
+      setProduct(data);
+
+      // ✅ NEW: fetch all products for related
+      const allRes = await fetch(`${API_URL}/api/products`);
+      const allProducts = await allRes.json();
+
+      // remove current product
+      const filtered = allProducts.filter((p) => p._id !== data._id);
+
+      // take first 4
+      setRelatedProducts(filtered.slice(0, 4));
+    } catch (err) {
+      console.error("Product detail error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchProduct = async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/products/${id}`);
-        const data = await res.json();
-        setProduct(data);
-
-        // ✅ NEW: fetch all products for related
-        const allRes = await fetch(`${API_URL}/api/products`);
-        const allProducts = await allRes.json();
-
-        // remove current product
-        const filtered = allProducts.filter(
-          (p) => p._id !== data._id
-        );
-
-        // take first 4
-        setRelatedProducts(filtered.slice(0, 4));
-      } catch (err) {
-        console.error("Product detail error:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchProduct();
   }, [id, API_URL]);
 
@@ -196,6 +196,46 @@ function ProductDetail() {
     }
   };
 
+  const submitRating = async () => {
+    if (!isLoggedIn) {
+      navigate("/login", { state: { from: `/product/${id}` } });
+      return;
+    }
+
+    if (!selectedRating) {
+      showToast("Please choose a rating between 1 and 5", "warning");
+      return;
+    }
+
+    setRatingSubmitting(true);
+
+    try {
+      const res = await fetch(`${API_URL}/api/products/${id}/rate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ rating: selectedRating }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data?.message || "Failed to submit rating", "danger");
+        return;
+      }
+
+      await fetchProduct();
+      setSelectedRating(0);
+      showToast("Your rating has been recorded", "success");
+    } catch (error) {
+      console.error("Rating error:", error);
+      showToast("Failed to submit rating", "danger");
+    } finally {
+      setRatingSubmitting(false);
+    }
+  };
+
   /* ===============================
      DELIVERY DATE (UI ONLY)
      =============================== */
@@ -257,7 +297,9 @@ function ProductDetail() {
           <h2 className="fw-bold">{product.name}</h2>
 
           <div className="mb-2 text-warning">
-            ⭐⭐⭐⭐☆ <span className="text-muted">(4.2 | 1,248 ratings)</span>
+            {"★".repeat(Math.round(product.averageRating || 0))}
+            {"☆".repeat(5 - Math.round(product.averageRating || 0))} 
+            <span className="text-muted">({(product.averageRating || 0).toFixed(1)} | {product.ratingCount || 0} ratings)</span>
           </div>
 
           <h4 className="text-success fw-bold mb-3">
@@ -324,6 +366,41 @@ function ProductDetail() {
             <button className="btn btn-outline-danger w-100 mb-4" onClick={addToWishlist}>
               ❤️ Add to Wishlist
             </button>
+          )}
+
+          {userRole === "user" && (
+            <div className="card p-4 mb-4 border rounded shadow-sm">
+              <h5 className="mb-3">Rate this product</h5>
+              <div className="mb-3">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    className="btn btn-sm me-1"
+                    onClick={() => setSelectedRating(star)}
+                    style={{
+                      backgroundColor: star <= selectedRating ? "#f59e0b" : "#e5e7eb",
+                      color: star <= selectedRating ? "#111827" : "#6b7280",
+                      border: "1px solid #d1d5db",
+                    }}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+              <div className="d-flex align-items-center gap-3">
+                <button
+                  className="btn btn-primary"
+                  onClick={submitRating}
+                  disabled={ratingSubmitting}
+                >
+                  {ratingSubmitting ? "Sending..." : "Submit Rating"}
+                </button>
+                <small className="text-muted">
+                  Selected: {selectedRating || 0} / 5
+                </small>
+              </div>
+            </div>
           )}
         </div>
       </div>

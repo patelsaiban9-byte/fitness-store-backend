@@ -250,7 +250,9 @@ function Home() {
 
                 <div className="fit-product-content">
                   <h3>{product.name}</h3>
-                  <p className="fit-rating">4.7 (120)</p>
+                  <p className="fit-rating">
+                    {(product.averageRating || 0).toFixed(1)} ({product.ratingCount || 0})
+                  </p>
                   <div className="fit-price-row">
                     <strong>Rs {product.price}</strong>
                     <span>Rs {mrp}</span>
