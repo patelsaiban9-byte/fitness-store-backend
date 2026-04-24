@@ -1,9 +1,11 @@
 const express = require("express");
 const router = express.Router();
+const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const CloudinaryStorage = require("multer-storage-cloudinary");
 const cloudinary = require("../config/cloudinary");
 const Product = require("../models/product");
+const Rating = require("../models/rating");
 
 // ===== Cloudinary Storage Config =====
 const storage = new CloudinaryStorage({
@@ -228,6 +230,82 @@ router.delete("/:id", async (req, res) => {
     res.json({ message: "Product deleted successfully" });
   } catch (err) {
     res.status(500).json({ message: "Failed to delete product" });
+  }
+});
+
+// ✅ Submit or update a user rating for a product
+router.post("/:id/rate", async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  const token = authHeader.split(" ")[1];
+  let payload;
+
+  try {
+    payload = jwt.verify(token, process.env.JWT_SECRET_KEY || "defaultsecret");
+  } catch (err) {
+    return res.status(401).json({ message: "Invalid or expired token" });
+  }
+
+  const userId = payload?.userId;
+  if (!userId) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  const { rating } = req.body;
+  const safeRating = Number(rating);
+
+  if (!Number.isFinite(safeRating) || safeRating < 1 || safeRating > 5) {
+    return res.status(400).json({ message: "Rating must be a number between 1 and 5" });
+  }
+
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    const existingRating = await Rating.findOne({
+      productId: req.params.id,
+      userId,
+    });
+
+    if (existingRating) {
+      existingRating.rating = safeRating;
+      existingRating.createdAt = new Date();
+      await existingRating.save();
+    } else {
+      await Rating.create({ productId: req.params.id, userId, rating: safeRating });
+    }
+
+    const [ratingStats] = await Rating.aggregate([
+      { $match: { productId: product._id } },
+      {
+        $group: {
+          _id: "$productId",
+          averageRating: { $avg: "$rating" },
+          ratingCount: { $sum: 1 },
+        },
+      },
+    ]);
+
+    product.ratingCount = ratingStats?.ratingCount || 0;
+    product.averageRating = ratingStats?.averageRating
+      ? Number(ratingStats.averageRating.toFixed(1))
+      : 0;
+
+    await product.save();
+
+    res.json({
+      message: "Rating submitted successfully",
+      averageRating: product.averageRating,
+      ratingCount: product.ratingCount,
+    });
+  } catch (err) {
+    console.error("❌ Rating submit error:", err);
+    res.status(500).json({ message: "Failed to submit rating" });
   }
 });
 
