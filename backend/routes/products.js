@@ -99,20 +99,36 @@ router.get("/category/:category", async (req, res) => {
   }
 });
 
-// ✅ Get single product by ID (fix image URL to be full URL)
+// ✅ Get single product by ID (fix image URL to be full URL and include rating stats)
 router.get("/:id", async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
-    
-    // ✅ Fix relative path to full URL if needed
+
+    // ✅ Calculate average rating and rating count from rating records
+    const [ratingStats] = await Rating.aggregate([
+      { $match: { productId: product._id } },
+      {
+        $group: {
+          _id: "$productId",
+          averageRating: { $avg: "$rating" },
+          ratingCount: { $sum: 1 },
+        },
+      },
+    ]);
+
     const productData = product.toObject();
     if (productData.image) {
       productData.image = ensureFullImageUrl(productData.image, req);
     }
-    
+
+    productData.averageRating = ratingStats?.averageRating
+      ? Number(ratingStats.averageRating.toFixed(1))
+      : 0;
+    productData.ratingCount = ratingStats?.ratingCount || 0;
+
     res.json(productData);
   } catch (err) {
     res.status(500).json({ message: "Server error" });

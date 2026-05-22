@@ -281,6 +281,15 @@ function Product() {
             <span className="badge bg-info text-dark">{product.category || "General"}</span>
           </p>
 
+          <div className="mb-2 text-warning small">
+            {"★".repeat(Math.round(product.averageRating || 0))}
+            {"☆".repeat(5 - Math.round(product.averageRating || 0))}
+            <span className="text-muted ms-2">
+              {(product.averageRating || 0).toFixed(1)} / 5
+              {product.ratingCount ? ` (${product.ratingCount})` : ""}
+            </span>
+          </div>
+
           <p className="text-muted flex-grow-1 product-desc">
             {product.description || "No description available"}
           </p>
