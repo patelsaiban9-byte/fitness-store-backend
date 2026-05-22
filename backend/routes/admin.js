@@ -4,8 +4,12 @@ const Order = require("../models/order");
 const User = require("../models/user");
 const jwt = require("jsonwebtoken");
 const PDFDocument = require("pdfkit");
-const { createCanvas } = require("canvas");
-const ChartJS = require("chart.js");
+let createCanvas = null;
+try {
+  createCanvas = require("canvas").createCanvas;
+} catch (canvasErr) {
+  console.warn("⚠️ Canvas module unavailable:", canvasErr.message);
+}
 const transporter = require("../config/mailer");
 
 const FIXED_ADMIN_EMAIL = "saiban@gmail.com";
@@ -90,6 +94,9 @@ const getSalesLevel = (qty, maxQty) => {
 
 // Function to generate bar chart image
 const generateBarChart = async (data, title, maxItems = 10) => {
+  if (!createCanvas) {
+    throw new Error("Canvas module is not available in this environment.");
+  }
   const canvas = createCanvas(800, 400);
   const ctx = canvas.getContext("2d");
   
@@ -139,6 +146,9 @@ const generateBarChart = async (data, title, maxItems = 10) => {
 
 // Function to generate pie chart image
 const generatePieChart = async (data, title) => {
+  if (!createCanvas) {
+    throw new Error("Canvas module is not available in this environment.");
+  }
   const canvas = createCanvas(400, 400);
   const ctx = canvas.getContext("2d");
   
@@ -204,6 +214,9 @@ const generatePieChart = async (data, title) => {
 
 // Function to generate line chart image
 const generateLineChart = async (data, title) => {
+  if (!createCanvas) {
+    throw new Error("Canvas module is not available in this environment.");
+  }
   const canvas = createCanvas(800, 400);
   const ctx = canvas.getContext("2d");
   
