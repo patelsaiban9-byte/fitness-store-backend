@@ -23,18 +23,36 @@ const wishlistRoutes = require("./routes/wishlist");
 app.use(express.json());
 
 // ✅ CORS setup
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "https://fitness-store-frontend.vercel.app",
+];
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173", // Local frontend (default Vite port)
-      "http://localhost:5174", // Local frontend (alternate port)
-      "https://fitness-store-frontend.vercel.app", // Deployed frontend
-    ],
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`CORS policy block: origin ${origin} not allowed`));
+    },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With"],
     credentials: true,
+    optionsSuccessStatus: 200,
   })
 );
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+  }
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+  next();
+});
 
 // ✅ Ensure 'upload' folder exists (only if not in serverless environment)
 // In serverless environments like AWS Lambda, use /tmp instead
