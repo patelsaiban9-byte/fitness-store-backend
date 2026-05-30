@@ -32,10 +32,35 @@ const orderSchema = new mongoose.Schema(
       },
     ],
 
-    // 💰 Total amount
+    // 💰 Total amount after coupons/discounts
     totalAmount: {
       type: Number,
       required: true,
+    },
+
+    originalAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    couponCode: {
+      type: String,
+      default: null,
+      uppercase: true,
+      trim: true,
+    },
+
+    discountAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    finalAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
 
     // 💳 Payment

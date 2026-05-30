@@ -6,6 +6,8 @@ function Home() {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
+  const [activeCoupons, setActiveCoupons] = useState([]);
+  const [offersLoading, setOffersLoading] = useState(true);
   const [activeSlide, setActiveSlide] = useState(0);
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
@@ -85,6 +87,26 @@ function Home() {
   }, [API_URL]);
 
   useEffect(() => {
+    const fetchActiveCoupons = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/coupons/active`);
+        const data = await res.json();
+        if (res.ok) {
+          setActiveCoupons(Array.isArray(data) ? data : []);
+        } else {
+          setActiveCoupons([]);
+        }
+      } catch {
+        setActiveCoupons([]);
+      } finally {
+        setOffersLoading(false);
+      }
+    };
+
+    fetchActiveCoupons();
+  }, [API_URL]);
+
+  useEffect(() => {
     const slideTimer = window.setInterval(() => {
       setActiveSlide((prev) => (prev + 1) % heroSlides.length);
     }, 5000);
@@ -99,6 +121,18 @@ function Home() {
     if (img.startsWith("http")) return img;
     return `${API_URL}/${img.replace(/^\/+/, "")}`;
   };
+
+  const formatDiscount = (coupon) =>
+    coupon.discountType === "percentage"
+      ? `${coupon.discountValue}% OFF`
+      : `₹${coupon.discountValue} OFF`;
+
+  const featuredCoupon = useMemo(() => {
+    if (!activeCoupons.length) return null;
+    return (
+      activeCoupons.find((c) => c.code === "WELCOME100") || activeCoupons[0]
+    );
+  }, [activeCoupons]);
 
   const addToCart = (product) => {
     const cart = JSON.parse(localStorage.getItem("cart")) || [];
@@ -169,17 +203,36 @@ function Home() {
             </div>
           </div>
         </div>
+      </section>
 
-        <div className="fit-slider-dots" aria-label="Hero slides">
-          {heroSlides.map((slide, index) => (
+      <section className="fit-promo-section">
+        <div className="fit-promo-card shadow-sm">
+          <div>
+            <p className="fit-promo-tag">🎉 New User Offer</p>
+            <h2>{featuredCoupon ? `Use ${featuredCoupon.code}` : "Use WELCOME100"}</h2>
+            <p>
+              {featuredCoupon
+                ? `Get ${formatDiscount(featuredCoupon)} on orders above ₹${featuredCoupon.minOrderAmount || 0}.`
+                : "Save on checkout with our latest coupon offers."
+              }
+            </p>
+          </div>
+          <div className="fit-promo-actions">
             <button
-              key={slide.title}
               type="button"
-              className={index === activeSlide ? "active" : ""}
-              aria-label={`Go to slide ${index + 1}`}
-              onClick={() => setActiveSlide(index)}
-            ></button>
-          ))}
+              className="fit-primary-btn"
+              onClick={() => navigate("/offers")}
+            >
+              View all offers
+            </button>
+            <button
+              type="button"
+              className="fit-secondary-btn"
+              onClick={() => navigate("/products")}
+            >
+              Shop now
+            </button>
+          </div>
         </div>
       </section>
 
@@ -213,6 +266,48 @@ function Home() {
           {categoryItems.length === 0 && (
             <div className="fit-empty-state">
               <p>Categories will appear here once products are available.</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="fit-section">
+        <div className="fit-section-head">
+          <h2>Latest Offers</h2>
+          <button
+            type="button"
+            className="fit-link-btn"
+            onClick={() => navigate("/offers")}
+          >
+            Browse all coupons
+          </button>
+        </div>
+
+        <div className="fit-offer-grid">
+          {offersLoading ? (
+            <div className="fit-empty-state">Loading current offers...</div>
+          ) : activeCoupons.length > 0 ? (
+            activeCoupons.slice(0, 3).map((coupon) => (
+              <div key={coupon.code} className="fit-offer-card">
+                <div>
+                  <strong>{coupon.code}</strong>
+                  <p>{coupon.description || formatDiscount(coupon)}</p>
+                </div>
+                <div>
+                  <span className="fit-offer-badge">{formatDiscount(coupon)}</span>
+                  <button
+                    type="button"
+                    className="fit-link-btn"
+                    onClick={() => navigate("/offers")}
+                  >
+                    Use code
+                  </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="fit-empty-state">
+              No offers available yet. Check back soon for new coupon codes.
             </div>
           )}
         </div>

@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Order = require("../models/order");
 const User = require("../models/user");
+const Coupon = require("../models/coupon");
 const jwt = require("jsonwebtoken");
 const PDFDocument = require("pdfkit");
 let createCanvas = null;
@@ -812,6 +813,159 @@ router.delete("/users/:id", async (req, res) => {
   } catch (error) {
     console.error("❌ Error deleting user:", error);
     res.status(500).json({ message: "Failed to delete user" });
+  }
+});
+
+// Coupon Management
+router.get("/coupons", async (req, res) => {
+  const admin = verifyAdminAccess(req, res);
+  if (!admin) return;
+
+  try {
+    const coupons = await Coupon.find().sort({ createdAt: -1 });
+    res.status(200).json(coupons);
+  } catch (error) {
+    console.error("❌ Error fetching coupons:", error);
+    res.status(500).json({ message: "Failed to fetch coupons" });
+  }
+});
+
+router.post("/coupons", async (req, res) => {
+  const admin = verifyAdminAccess(req, res);
+  if (!admin) return;
+
+  const {
+    code,
+    discountType,
+    discountValue,
+    minOrderAmount,
+    maxDiscountAmount,
+    expiryDate,
+    usageLimit,
+    isActive,
+    description,
+  } = req.body;
+
+  try {
+    const coupon = await Coupon.create({
+      code,
+      discountType,
+      discountValue,
+      minOrderAmount: minOrderAmount || 0,
+      maxDiscountAmount: maxDiscountAmount || 0,
+      expiryDate,
+      usageLimit: usageLimit || 1,
+      isActive: typeof isActive === "boolean" ? isActive : true,
+      description: description || "",
+      usedCount: 0,
+    });
+
+    res.status(201).json({ message: "Coupon created successfully", coupon });
+  } catch (error) {
+    console.error("❌ Error creating coupon:", error);
+    res.status(500).json({ message: "Failed to create coupon", error: error.message });
+  }
+});
+
+router.put("/coupons/:id", async (req, res) => {
+  const admin = verifyAdminAccess(req, res);
+  if (!admin) return;
+
+  const updates = { ...req.body };
+  if (updates.code) updates.code = updates.code.trim().toUpperCase();
+
+  try {
+    const coupon = await Coupon.findByIdAndUpdate(req.params.id, updates, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!coupon) {
+      return res.status(404).json({ message: "Coupon not found" });
+    }
+
+    res.status(200).json({ message: "Coupon updated successfully", coupon });
+  } catch (error) {
+    console.error("❌ Error updating coupon:", error);
+    res.status(500).json({ message: "Failed to update coupon", error: error.message });
+  }
+});
+
+router.patch("/coupons/:id/disable", async (req, res) => {
+  const admin = verifyAdminAccess(req, res);
+  if (!admin) return;
+
+  try {
+    const coupon = await Coupon.findByIdAndUpdate(
+      req.params.id,
+      { isActive: false },
+      { new: true }
+    );
+
+    if (!coupon) {
+      return res.status(404).json({ message: "Coupon not found" });
+    }
+
+    res.status(200).json({ message: "Coupon disabled successfully", coupon });
+  } catch (error) {
+    console.error("❌ Error disabling coupon:", error);
+    res.status(500).json({ message: "Failed to disable coupon", error: error.message });
+  }
+});
+
+router.delete("/coupons/:id", async (req, res) => {
+  const admin = verifyAdminAccess(req, res);
+  if (!admin) return;
+
+  try {
+    const coupon = await Coupon.findByIdAndDelete(req.params.id);
+    if (!coupon) {
+      return res.status(404).json({ message: "Coupon not found" });
+    }
+
+    res.status(200).json({ message: "Coupon deleted successfully" });
+  } catch (error) {
+    console.error("❌ Error deleting coupon:", error);
+    res.status(500).json({ message: "Failed to delete coupon" });
+  }
+});
+
+router.get("/coupons/report", async (req, res) => {
+  const admin = verifyAdminAccess(req, res);
+  if (!admin) return;
+
+  try {
+    const coupons = await Coupon.find().lean();
+    const usageData = await Order.aggregate([
+      {
+        $match: {
+          couponCode: { $exists: true, $ne: null },
+        },
+      },
+      {
+        $group: {
+          _id: "$couponCode",
+          usedTimes: { $sum: 1 },
+          totalDiscountGiven: { $sum: "$discountAmount" },
+        },
+      },
+    ]);
+
+    const usageMap = usageData.reduce((acc, item) => {
+      acc[item._id] = item;
+      return acc;
+    }, {});
+
+    const report = coupons.map((coupon) => ({
+      ...coupon,
+      usedTimes: usageMap[coupon.code]?.usedTimes || 0,
+      totalDiscountGiven: usageMap[coupon.code]?.totalDiscountGiven || 0,
+    }));
+
+    res.status(200).json(report);
+  } catch (error) {
+    console.error("❌ Error generating coupon report:", error);
+    res.status(500).json({ message: "Failed to generate coupon report" });
   }
 });
 

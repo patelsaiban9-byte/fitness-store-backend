@@ -35,6 +35,7 @@ function ProductDetail() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ show: false, message: "", type: "info" });
   const [selectedRating, setSelectedRating] = useState(0);
+  const [currentUserRating, setCurrentUserRating] = useState(0);
   const [ratingSubmitting, setRatingSubmitting] = useState(false);
 
   // ✅ NEW (ONLY ADD)
@@ -50,9 +51,16 @@ function ProductDetail() {
      =============================== */
   const fetchProduct = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/products/${id}`);
+      const headers = {};
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const res = await fetch(`${API_URL}/api/products/${id}`, { headers });
       const data = await res.json();
       setProduct(data);
+      setCurrentUserRating(data.userRating || 0);
+      setSelectedRating(data.userRating || 0);
 
       // ✅ NEW: fetch all products for related
       const allRes = await fetch(`${API_URL}/api/products`);
@@ -394,12 +402,21 @@ function ProductDetail() {
                   onClick={submitRating}
                   disabled={ratingSubmitting}
                 >
-                  {ratingSubmitting ? "Sending..." : "Submit Rating"}
+                  {ratingSubmitting
+                    ? "Sending..."
+                    : currentUserRating
+                    ? "Update Rating"
+                    : "Submit Rating"}
                 </button>
                 <small className="text-muted">
                   Selected: {selectedRating || 0} / 5
                 </small>
               </div>
+              <small className="text-muted d-block mt-2">
+                {currentUserRating
+                  ? `You have already rated this product ${currentUserRating}/5. You may update it anytime.`
+                  : "You can rate this product once and update your rating later."}
+              </small>
             </div>
           )}
         </div>

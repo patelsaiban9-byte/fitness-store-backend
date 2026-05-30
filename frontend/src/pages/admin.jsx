@@ -210,6 +210,9 @@ function Admin() {
         <Link to="/admin/users" className="btn btn-primary">
           👥 Manage Users
         </Link>
+        <Link to="/admin/coupons" className="btn btn-primary">
+          🎟️ Manage Coupons
+        </Link>
         <Link to="/admin/reports" className="btn btn-primary">
           � View Sales Reports
         </Link>

@@ -124,10 +124,29 @@ router.get("/:id", async (req, res) => {
       productData.image = ensureFullImageUrl(productData.image, req);
     }
 
+    let currentUserRating = 0;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        const token = authHeader.split(" ")[1];
+        const payload = jwt.verify(token, process.env.JWT_SECRET_KEY || "defaultsecret");
+        if (payload?.userId) {
+          const userRating = await Rating.findOne({
+            productId: product._id,
+            userId: payload.userId,
+          }).lean();
+          currentUserRating = userRating?.rating || 0;
+        }
+      } catch (err) {
+        // ignore invalid token for product fetch
+      }
+    }
+
     productData.averageRating = ratingStats?.averageRating
       ? Number(ratingStats.averageRating.toFixed(1))
       : 0;
     productData.ratingCount = ratingStats?.ratingCount || 0;
+    productData.userRating = currentUserRating;
 
     res.json(productData);
   } catch (err) {

@@ -10,6 +10,9 @@ function OrderForm() {
   const [message, setMessage] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [couponCode, setCouponCode] = useState("");
+  const [couponMessage, setCouponMessage] = useState(null);
+  const [couponData, setCouponData] = useState(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -91,6 +94,8 @@ function OrderForm() {
     0
   );
 
+  const finalAmount = couponData?.finalAmount || totalAmount;
+
   const loadRazorpayScript = () =>
     new Promise((resolve) => {
       if (window.Razorpay) {
@@ -108,6 +113,42 @@ function OrderForm() {
   /* ===============================
      PLACE ORDER (FINAL FIX ✅)
      =============================== */
+  const handleApplyCoupon = async () => {
+    setCouponMessage(null);
+    setCouponData(null);
+
+    if (!couponCode.trim()) {
+      setCouponMessage({ type: "warning", text: "Please enter a coupon code." });
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/api/orders/coupon/validate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: couponCode.trim(), totalAmount }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setCouponMessage({ type: "danger", text: data.error || "Coupon is not valid." });
+        return;
+      }
+
+      setCouponMessage({ type: "success", text: `Coupon applied: ₹${data.discountAmount} off` });
+      setCouponData(data);
+    } catch (err) {
+      console.error("Coupon apply error:", err);
+      setCouponMessage({ type: "danger", text: "Failed to apply coupon." });
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponCode("");
+    setCouponData(null);
+    setCouponMessage({ type: "info", text: "Coupon removed." });
+  };
+
   const handleOrder = async (e) => {
     e.preventDefault();
     setMessage(null);
@@ -131,7 +172,11 @@ function OrderForm() {
         price: item.price,
         qty: item.qty,
       })),
-      totalAmount,
+      totalAmount: finalAmount,
+      originalAmount: totalAmount,
+      discountAmount: couponData?.discountAmount || 0,
+      finalAmount,
+      couponCode: couponData?.couponCode || null,
 
       paymentMethod: paymentMethod === "COD" ? "COD" : "UPI",
       paymentStatus: paymentMethod === "COD" ? "PENDING" : "PAID",
@@ -297,8 +342,9 @@ function OrderForm() {
   return (
     <div style={pageStyle}>
       <div style={cardStyle}>
-        <div style={summaryStyle}>
-          <h3>🛒 Cart Summary</h3>
+        <form onSubmit={handleOrder}>
+          <div style={summaryStyle}>
+            <h3>🛒 Cart Summary</h3>
 
           {cartItems.map((item) => (
             <div key={item._id} style={rowStyle}>
@@ -309,24 +355,53 @@ function OrderForm() {
 
           <hr />
 
-          <div style={totalStyle}>
-            <span>Total</span>
+          <div className="mb-3">
+            <label className="form-label">Coupon Code</label>
+            <div className="d-flex gap-2">
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Enter coupon code"
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value)}
+              />
+              <button type="button" className="btn btn-outline-primary" onClick={handleApplyCoupon}>
+                Apply
+              </button>
+            </div>
+            {couponData && (
+              <div className="mt-2 text-success">
+                Coupon applied: {couponData.couponCode} — ₹{couponData.discountAmount} off
+              </div>
+            )}
+            {couponMessage && (
+              <div className={`mt-2 text-${couponMessage.type === "danger" ? "danger" : couponMessage.type === "warning" ? "warning" : "success"}`}>
+                {couponMessage.text}
+                {couponData && (
+                  <button type="button" className="btn btn-link p-0 ms-3" onClick={handleRemoveCoupon}>
+                    Remove
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div style={rowStyle}>
+            <span>Subtotal</span>
             <span>₹{totalAmount}</span>
           </div>
-        </div>
-
-        <form onSubmit={handleOrder}>
-          {message && (
-            <div className={`alert alert-${message.type} alert-dismissible fade show`} role="alert">
-              {message.text}
-              <button
-                type="button"
-                className="btn-close"
-                aria-label="Close"
-                onClick={() => setMessage(null)}
-              ></button>
+          {couponData && (
+            <div style={rowStyle}>
+              <span>Discount</span>
+              <span>- ₹{couponData.discountAmount}</span>
             </div>
           )}
+          <hr />
+          <div style={totalStyle}>
+            <span>Final Total</span>
+            <span>₹{finalAmount}</span>
+          </div>
+        </div>
 
           <div className="mb-3">
             <input

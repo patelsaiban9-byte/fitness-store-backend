@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Order = require("../models/order");
 const Product = require("../models/product");
+const Coupon = require("../models/coupon");
 const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const crypto = require("crypto");
@@ -33,6 +34,60 @@ const restockOrderItems = async (order) => {
   }
 };
 
+const calculateCouponDiscount = (coupon, amount) => {
+  if (!coupon || typeof amount !== "number" || amount <= 0) {
+    return 0;
+  }
+
+  let discount = 0;
+  if (coupon.discountType === "percentage") {
+    discount = Math.round((amount * coupon.discountValue) / 100);
+    if (coupon.maxDiscountAmount && coupon.maxDiscountAmount > 0) {
+      discount = Math.min(discount, coupon.maxDiscountAmount);
+    }
+  } else {
+    discount = coupon.discountValue;
+  }
+
+  return Math.min(discount, amount);
+};
+
+const validateCoupon = async (code, amount) => {
+  if (!code || typeof code !== "string") {
+    throw { status: 400, message: "Coupon code is required" };
+  }
+
+  const normalizedCode = code.trim().toUpperCase();
+  const coupon = await Coupon.findOne({ code: normalizedCode });
+
+  if (!coupon) {
+    throw { status: 400, message: "Invalid coupon code" };
+  }
+
+  if (!coupon.isActive) {
+    throw { status: 400, message: "Coupon is not active" };
+  }
+
+  const now = new Date();
+  if (coupon.expiryDate && new Date(coupon.expiryDate) < now) {
+    throw { status: 400, message: "Coupon has expired" };
+  }
+
+  if (coupon.usageLimit !== undefined && coupon.usedCount >= coupon.usageLimit) {
+    throw { status: 400, message: "Coupon usage limit exceeded" };
+  }
+
+  if (amount < coupon.minOrderAmount) {
+    throw {
+      status: 400,
+      message: `Minimum order amount for this coupon is ₹${coupon.minOrderAmount}`,
+    };
+  }
+
+  const discountAmount = calculateCouponDiscount(coupon, amount);
+  return { coupon, discountAmount };
+};
+
 const createOrderWithStockAndEmail = async ({
   customer,
   items,
@@ -43,6 +98,10 @@ const createOrderWithStockAndEmail = async ({
   razorpayOrderId = null,
   razorpayPaymentId = null,
   razorpaySignature = null,
+  couponCode = null,
+  discountAmount = 0,
+  originalAmount = 0,
+  finalAmount = 0,
 }) => {
   if (
     !customer ||
@@ -96,6 +155,10 @@ const createOrderWithStockAndEmail = async ({
     userId,
     items,
     totalAmount,
+    originalAmount,
+    finalAmount,
+    couponCode: couponCode ? couponCode.toUpperCase() : null,
+    discountAmount,
     paymentMethod,
     paymentStatus,
     razorpayOrderId,
@@ -153,6 +216,18 @@ const createOrderWithStockAndEmail = async ({
 
   console.log("📧 Email service result:", emailResult);
 
+  if (couponCode) {
+    try {
+      await Coupon.findOneAndUpdate(
+        { code: couponCode.trim().toUpperCase() },
+        { $inc: { usedCount: 1 } },
+        { new: true }
+      );
+    } catch (couponErr) {
+      console.warn("Failed to increment coupon usage count:", couponErr.message);
+    }
+  }
+
   return { newOrder, emailResult };
 };
 
@@ -167,17 +242,40 @@ router.post("/cart", async (req, res) => {
       totalAmount,
       paymentMethod,
       paymentStatus,
+      couponCode,
+      originalAmount,
+      discountAmount,
+      finalAmount,
     } = req.body;
+
+    let couponValidation = null;
+    if (couponCode) {
+      try {
+        couponValidation = await validateCoupon(couponCode, originalAmount || totalAmount);
+      } catch (couponErr) {
+        return res.status(couponErr.status || 400).json({ error: couponErr.message });
+      }
+    }
 
     if (paymentMethod && paymentMethod !== "COD") {
       return res.status(400).json({
         error: "Online payments must use /api/orders/payment/verify",
       });
     }
+
+    const appliedDiscount = couponValidation?.discountAmount || 0;
+    const calculatedFinalAmount = couponValidation
+      ? Math.max(0, (originalAmount || totalAmount) - appliedDiscount)
+      : finalAmount || totalAmount;
+
     const { newOrder, emailResult } = await createOrderWithStockAndEmail({
       customer,
       items,
-      totalAmount,
+      totalAmount: calculatedFinalAmount,
+      originalAmount: originalAmount || totalAmount,
+      couponCode,
+      discountAmount: appliedDiscount,
+      finalAmount: calculatedFinalAmount,
       userId: req.body.userId,
       paymentMethod: paymentMethod || "COD",
       paymentStatus: paymentStatus || "PENDING",
@@ -194,6 +292,33 @@ router.post("/cart", async (req, res) => {
       return res.status(400).json({ error: err.message, details: err.details });
     }
     res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+router.post("/coupon/validate", async (req, res) => {
+  try {
+    const { code, totalAmount } = req.body;
+    const numericTotal = Number(totalAmount);
+    if (!Number.isFinite(numericTotal) || numericTotal <= 0) {
+      return res.status(400).json({ error: "Valid total amount is required" });
+    }
+
+    const { coupon, discountAmount } = await validateCoupon(code, numericTotal);
+
+    res.json({
+      couponCode: coupon.code,
+      discountAmount,
+      originalAmount: numericTotal,
+      finalAmount: Math.max(0, numericTotal - discountAmount),
+      discountType: coupon.discountType,
+      discountValue: coupon.discountValue,
+      maxDiscountAmount: coupon.maxDiscountAmount,
+      minOrderAmount: coupon.minOrderAmount,
+      expiryDate: coupon.expiryDate,
+    });
+  } catch (err) {
+    console.error("Coupon validation error:", err);
+    res.status(err.status || 400).json({ error: err.message || "Invalid coupon" });
   }
 });
 
@@ -251,6 +376,10 @@ router.post("/payment/verify", async (req, res) => {
       customer,
       items,
       totalAmount,
+      originalAmount,
+      discountAmount,
+      finalAmount,
+      couponCode,
       paymentMethod,
       userId,
       razorpay_order_id,
@@ -273,10 +402,28 @@ router.post("/payment/verify", async (req, res) => {
 
     const safeMethod = ["UPI", "CARD"].includes(paymentMethod) ? paymentMethod : "UPI";
 
+    let couponValidation = null;
+    if (couponCode) {
+      try {
+        couponValidation = await validateCoupon(couponCode, originalAmount || totalAmount);
+      } catch (couponErr) {
+        return res.status(couponErr.status || 400).json({ error: couponErr.message });
+      }
+    }
+
+    const appliedDiscount = couponValidation?.discountAmount || 0;
+    const calculatedFinalAmount = couponValidation
+      ? Math.max(0, (originalAmount || totalAmount) - appliedDiscount)
+      : finalAmount || totalAmount;
+
     const { newOrder, emailResult } = await createOrderWithStockAndEmail({
       customer,
       items,
-      totalAmount,
+      totalAmount: calculatedFinalAmount,
+      originalAmount: originalAmount || totalAmount,
+      couponCode,
+      discountAmount: appliedDiscount,
+      finalAmount: calculatedFinalAmount,
       userId,
       paymentMethod: safeMethod,
       paymentStatus: "PAID",

@@ -24,12 +24,14 @@ import About from "./pages/about";
 import ProductDetail from "./pages/ProductDetail";
 import Feedback from "./pages/Feedback";
 import Wishlist from "./pages/Wishlist";
+import Offers from "./pages/Offers";
 
 
 // Admin pages
 import Admin from "./pages/admin";
 import AdminOrders from "./pages/adminorder";
 import OrderDetail from "./pages/OrderDetail";
+import AdminCoupons from "./pages/AdminCoupons";
 import SalesReports from "./pages/SalesReports";
 import AdminReturns from "./pages/AdminReturns";
 import AdminFeedback from "./pages/AdminFeedback";
@@ -221,6 +223,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/products" element={<Products />} />
           <Route path="/products/category/:category" element={<Products />} />
+          <Route path="/offers" element={<Offers />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/about" element={<About />} />
           <Route path="/product/:id" element={<ProductDetail />} />
@@ -381,6 +384,19 @@ function App() {
                 userRole={userRole}
               >
                 <AdminUsers />
+              </AdminRoute>
+            }
+          />
+
+          {/* Admin Coupon Management */}
+          <Route
+            path="/admin/coupons"
+            element={
+              <AdminRoute
+                isLoggedIn={isLoggedIn}
+                userRole={userRole}
+              >
+                <AdminCoupons />
               </AdminRoute>
             }
           />

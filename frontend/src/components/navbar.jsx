@@ -378,6 +378,16 @@ function Navbar({ isLoggedIn, userRole, setIsLoggedIn, setUserRole }) {
             <li className="nav-item">
               <Link
                 className="nav-link text-white fw-semibold mx-1"
+                to="/offers"
+                onClick={() => setIsOpen(false)}
+              >
+                Offers
+              </Link>
+            </li>
+
+            <li className="nav-item">
+              <Link
+                className="nav-link text-white fw-semibold mx-1"
                 to="/about"
                 onClick={() => setIsOpen(false)}
               >
