@@ -16,3 +16,5 @@ build/
 
 # Git metadata for nested frontend repo backup
 frontend/.git_backup/
+.vercel
+.env*

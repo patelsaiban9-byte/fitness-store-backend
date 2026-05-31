@@ -1,9 +1,31 @@
 const express = require("express");
 const router = express.Router();
+const mongoose = require("mongoose");
 const User = require("../models/user");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const transporter = require("../config/mailer");
+
+const getTokenPayload = (req) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const token = authHeader.split(" ")[1];
+  try {
+    return jwt.verify(token, process.env.JWT_SECRET_KEY || "defaultsecret");
+  } catch {
+    return null;
+  }
+};
+
+const getUserIdFromPayload = (payload) => {
+  if (!payload || !mongoose.Types.ObjectId.isValid(payload.userId)) {
+    return null;
+  }
+  return payload.userId;
+};
 
 // ------------------ FIXED ADMIN ------------------
 const FIXED_ADMIN_EMAIL = "saiban@gmail.com";
@@ -88,6 +110,7 @@ router.post("/login", async (req, res) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
+        profileImage: user.profileImage || "",
       },
     });
   } catch (error) {
@@ -234,6 +257,107 @@ router.get("/admin/reports", async (req, res) => {
     res.status(200).json(userReports);
   } catch (error) {
     console.error("Admin report error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ------------------ GET PROFILE ------------------
+router.get("/profile", async (req, res) => {
+  try {
+    const payload = getTokenPayload(req);
+    const userId = getUserIdFromPayload(payload);
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const user = await User.findById(userId, "name email phone profileImage role isActive createdAt");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    console.error("Get profile error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ------------------ UPDATE PROFILE
+router.put("/profile", async (req, res) => {
+  try {
+    const payload = getTokenPayload(req);
+    const userId = getUserIdFromPayload(payload);
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const { name, email, phone, profileImage } = req.body;
+    if (!name || !email || !phone) {
+      return res.status(400).json({ message: "Name, email, and phone are required" });
+    }
+
+    const existingUser = await User.findOne({ email, _id: { $ne: userId } });
+    if (existingUser) {
+      return res.status(400).json({ message: "Email is already taken" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.name = name;
+    user.email = email;
+    user.phone = phone;
+    if (typeof profileImage === "string") {
+      user.profileImage = profileImage;
+    }
+
+    await user.save();
+
+    res.status(200).json({ message: "Profile updated successfully" });
+  } catch (error) {
+    console.error("Update profile error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ------------------ UPDATE PROFILE PASSWORD ------------------
+router.patch("/profile/password", async (req, res) => {
+  try {
+    const payload = getTokenPayload(req);
+    const userId = getUserIdFromPayload(payload);
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const { currentPassword, oldPassword, newPassword } = req.body;
+    const passwordToCheck = currentPassword || oldPassword;
+
+    if (!passwordToCheck || !newPassword) {
+      return res.status(400).json({ message: "Current and new password are required" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: "New password must be at least 6 characters" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Current password is incorrect" });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({ message: "Password updated successfully" });
+  } catch (error) {
+    console.error("Update password error:", error);
     res.status(500).json({ message: "Server error" });
   }
 });

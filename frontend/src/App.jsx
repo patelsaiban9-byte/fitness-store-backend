@@ -25,6 +25,7 @@ import ProductDetail from "./pages/ProductDetail";
 import Feedback from "./pages/Feedback";
 import Wishlist from "./pages/Wishlist";
 import Offers from "./pages/Offers";
+import Profile from "./pages/profile";
 
 
 // Admin pages
@@ -234,6 +235,14 @@ function App() {
             element={
               <UserRoute isLoggedIn={isLoggedIn} userRole={userRole}>
                 <MyOrders />
+              </UserRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <UserRoute isLoggedIn={isLoggedIn} userRole={userRole}>
+                <Profile />
               </UserRoute>
             }
           />

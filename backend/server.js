@@ -19,6 +19,8 @@ const couponRoutes = require("./routes/coupons");
 const returnRoutes = require("./routes/returns");
 const feedbackRoutes = require("./routes/feedback");
 const wishlistRoutes = require("./routes/wishlist");
+const addressRoutes = require("./routes/addresses");
+const ratingRoutes = require("./routes/ratings");
 
 // ✅ Middleware
 app.use(express.json());
@@ -89,6 +91,8 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/returns", returnRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/wishlist", wishlistRoutes);
+app.use("/api/addresses", addressRoutes);
+app.use("/api/ratings", ratingRoutes);
 
 // ✅ Default Route
 app.get("/", (req, res) => {

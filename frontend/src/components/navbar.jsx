@@ -430,6 +430,18 @@ function Navbar({ isLoggedIn, userRole, setIsLoggedIn, setUserRole }) {
 
             {/* USER LINKS */}
             {isUser && (
+              <li className="nav-item">
+                <Link
+                  className="nav-link text-white fw-semibold mx-1"
+                  to="/profile"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Profile
+                </Link>
+              </li>
+            )}
+
+            {isUser && (
               <li className="nav-item position-relative">
                 <Link
                   className="nav-link text-white fw-semibold mx-1"
