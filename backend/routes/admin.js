@@ -6,11 +6,15 @@ const Coupon = require("../models/coupon");
 const jwt = require("jsonwebtoken");
 const PDFDocument = require("pdfkit");
 let createCanvas = null;
-try {
-  createCanvas = require("canvas").createCanvas;
-} catch (canvasErr) {
-  console.warn("⚠️ Canvas module unavailable:", canvasErr.message);
-}
+const getCreateCanvas = () => {
+  if (createCanvas !== null) return createCanvas;
+  try {
+    createCanvas = require("canvas").createCanvas;
+  } catch (canvasErr) {
+    createCanvas = false;
+  }
+  return createCanvas;
+};
 const transporter = require("../config/mailer");
 
 const FIXED_ADMIN_EMAIL = "saiban@gmail.com";
@@ -95,10 +99,11 @@ const getSalesLevel = (qty, maxQty) => {
 
 // Function to generate bar chart image
 const generateBarChart = async (data, title, maxItems = 10) => {
-  if (!createCanvas) {
+  const createCanvasFn = getCreateCanvas();
+  if (!createCanvasFn) {
     throw new Error("Canvas module is not available in this environment.");
   }
-  const canvas = createCanvas(800, 400);
+  const canvas = createCanvasFn(800, 400);
   const ctx = canvas.getContext("2d");
   
   // Background
@@ -147,10 +152,11 @@ const generateBarChart = async (data, title, maxItems = 10) => {
 
 // Function to generate pie chart image
 const generatePieChart = async (data, title) => {
-  if (!createCanvas) {
+  const createCanvasFn = getCreateCanvas();
+  if (!createCanvasFn) {
     throw new Error("Canvas module is not available in this environment.");
   }
-  const canvas = createCanvas(400, 400);
+  const canvas = createCanvasFn(400, 400);
   const ctx = canvas.getContext("2d");
   
   // Background
@@ -215,10 +221,11 @@ const generatePieChart = async (data, title) => {
 
 // Function to generate line chart image
 const generateLineChart = async (data, title) => {
-  if (!createCanvas) {
+  const createCanvasFn = getCreateCanvas();
+  if (!createCanvasFn) {
     throw new Error("Canvas module is not available in this environment.");
   }
-  const canvas = createCanvas(800, 400);
+  const canvas = createCanvasFn(800, 400);
   const ctx = canvas.getContext("2d");
   
   // Background
