@@ -853,15 +853,51 @@ router.post("/coupons", async (req, res) => {
     description,
   } = req.body;
 
+  const normalizedCode = typeof code === "string" ? code.trim().toUpperCase() : "";
+  const parsedDiscountValue = Number(discountValue);
+  const parsedMinOrderAmount = Number(minOrderAmount || 0);
+  const parsedMaxDiscountAmount = Number(maxDiscountAmount || 0);
+  const parsedUsageLimit = Number(usageLimit || 1);
+
   try {
+    if (!normalizedCode) {
+      return res.status(400).json({ message: "Coupon code is required." });
+    }
+    if (Number.isNaN(parsedDiscountValue) || parsedDiscountValue <= 0) {
+      return res.status(400).json({ message: "Discount value must be greater than zero." });
+    }
+    if (discountType === "percentage" && parsedDiscountValue > 100) {
+      return res.status(400).json({ message: "Percentage discount cannot exceed 100%." });
+    }
+    if (parsedMinOrderAmount < 0) {
+      return res.status(400).json({ message: "Minimum order amount cannot be negative." });
+    }
+    if (parsedMaxDiscountAmount < 0) {
+      return res.status(400).json({ message: "Maximum discount cannot be negative." });
+    }
+    if (!expiryDate) {
+      return res.status(400).json({ message: "Expiry date is required." });
+    }
+    if (new Date(expiryDate) < new Date(new Date().toDateString())) {
+      return res.status(400).json({ message: "Expiry date cannot be in the past." });
+    }
+    if (parsedUsageLimit <= 0) {
+      return res.status(400).json({ message: "Usage limit must be greater than 0." });
+    }
+
+    const existingCoupon = await Coupon.findOne({ code: normalizedCode });
+    if (existingCoupon) {
+      return res.status(409).json({ message: "Coupon code already exists." });
+    }
+
     const coupon = await Coupon.create({
-      code,
+      code: normalizedCode,
       discountType,
-      discountValue,
-      minOrderAmount: minOrderAmount || 0,
-      maxDiscountAmount: maxDiscountAmount || 0,
+      discountValue: parsedDiscountValue,
+      minOrderAmount: parsedMinOrderAmount,
+      maxDiscountAmount: parsedMaxDiscountAmount,
       expiryDate,
-      usageLimit: usageLimit || 1,
+      usageLimit: parsedUsageLimit,
       isActive: typeof isActive === "boolean" ? isActive : true,
       description: description || "",
       usedCount: 0,
@@ -870,6 +906,9 @@ router.post("/coupons", async (req, res) => {
     res.status(201).json({ message: "Coupon created successfully", coupon });
   } catch (error) {
     console.error("❌ Error creating coupon:", error);
+    if (error.code === 11000) {
+      return res.status(409).json({ message: "Coupon code already exists." });
+    }
     res.status(500).json({ message: "Failed to create coupon", error: error.message });
   }
 });
@@ -880,8 +919,48 @@ router.put("/coupons/:id", async (req, res) => {
 
   const updates = { ...req.body };
   if (updates.code) updates.code = updates.code.trim().toUpperCase();
+  const parsedDiscountValue = Number(updates.discountValue);
+  const parsedMinOrderAmount = Number(updates.minOrderAmount ?? 0);
+  const parsedMaxDiscountAmount = Number(updates.maxDiscountAmount ?? 0);
+  const parsedUsageLimit = Number(updates.usageLimit ?? 1);
 
   try {
+    if (updates.code && !updates.code.trim()) {
+      return res.status(400).json({ message: "Coupon code is required." });
+    }
+    if (updates.discountValue !== undefined) {
+      if (Number.isNaN(parsedDiscountValue) || parsedDiscountValue <= 0) {
+        return res.status(400).json({ message: "Discount value must be greater than zero." });
+      }
+      if (updates.discountType === "percentage" && parsedDiscountValue > 100) {
+        return res.status(400).json({ message: "Percentage discount cannot exceed 100%." });
+      }
+    }
+    if (updates.minOrderAmount !== undefined && parsedMinOrderAmount < 0) {
+      return res.status(400).json({ message: "Minimum order amount cannot be negative." });
+    }
+    if (updates.maxDiscountAmount !== undefined && parsedMaxDiscountAmount < 0) {
+      return res.status(400).json({ message: "Maximum discount cannot be negative." });
+    }
+    if (updates.expiryDate && new Date(updates.expiryDate) < new Date(new Date().toDateString())) {
+      return res.status(400).json({ message: "Expiry date cannot be in the past." });
+    }
+    if (updates.usageLimit !== undefined && parsedUsageLimit <= 0) {
+      return res.status(400).json({ message: "Usage limit must be greater than 0." });
+    }
+
+    if (updates.code) {
+      const existingCoupon = await Coupon.findOne({ code: updates.code, _id: { $ne: req.params.id } });
+      if (existingCoupon) {
+        return res.status(409).json({ message: "Coupon code already exists." });
+      }
+    }
+
+    if (updates.discountValue !== undefined) updates.discountValue = parsedDiscountValue;
+    if (updates.minOrderAmount !== undefined) updates.minOrderAmount = parsedMinOrderAmount;
+    if (updates.maxDiscountAmount !== undefined) updates.maxDiscountAmount = parsedMaxDiscountAmount;
+    if (updates.usageLimit !== undefined) updates.usageLimit = parsedUsageLimit;
+
     const coupon = await Coupon.findByIdAndUpdate(req.params.id, updates, {
       new: true,
       runValidators: true,
@@ -894,6 +973,9 @@ router.put("/coupons/:id", async (req, res) => {
     res.status(200).json({ message: "Coupon updated successfully", coupon });
   } catch (error) {
     console.error("❌ Error updating coupon:", error);
+    if (error.code === 11000) {
+      return res.status(409).json({ message: "Coupon code already exists." });
+    }
     res.status(500).json({ message: "Failed to update coupon", error: error.message });
   }
 });
@@ -902,10 +984,12 @@ router.patch("/coupons/:id/disable", async (req, res) => {
   const admin = verifyAdminAccess(req, res);
   if (!admin) return;
 
+  const nextIsActive = typeof req.body?.isActive === "boolean" ? req.body.isActive : false;
+
   try {
     const coupon = await Coupon.findByIdAndUpdate(
       req.params.id,
-      { isActive: false },
+      { isActive: nextIsActive },
       { new: true }
     );
 
@@ -913,10 +997,13 @@ router.patch("/coupons/:id/disable", async (req, res) => {
       return res.status(404).json({ message: "Coupon not found" });
     }
 
-    res.status(200).json({ message: "Coupon disabled successfully", coupon });
+    res.status(200).json({
+      message: nextIsActive ? "Coupon enabled successfully" : "Coupon disabled successfully",
+      coupon,
+    });
   } catch (error) {
-    console.error("❌ Error disabling coupon:", error);
-    res.status(500).json({ message: "Failed to disable coupon", error: error.message });
+    console.error("❌ Error updating coupon status:", error);
+    res.status(500).json({ message: "Failed to update coupon status", error: error.message });
   }
 });
 

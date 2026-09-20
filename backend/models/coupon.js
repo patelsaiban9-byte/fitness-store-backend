@@ -36,7 +36,7 @@ const couponSchema = new mongoose.Schema(
     usageLimit: {
       type: Number,
       default: 1,
-      min: 0,
+      min: 1,
     },
     usedCount: {
       type: Number,
@@ -54,5 +54,33 @@ const couponSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+couponSchema.pre("validate", function (next) {
+  if (this.discountType === "percentage" && Number(this.discountValue) > 100) {
+    this.invalidate("discountValue", "Percentage discount cannot exceed 100%.");
+  }
+
+  if (this.expiryDate && new Date(this.expiryDate) < new Date(new Date().toDateString())) {
+    this.invalidate("expiryDate", "Expiry date cannot be in the past.");
+  }
+
+  if (this.usageLimit !== undefined && Number(this.usageLimit) <= 0) {
+    this.invalidate("usageLimit", "Usage limit must be greater than 0.");
+  }
+
+  if (this.discountValue !== undefined && Number(this.discountValue) < 0) {
+    this.invalidate("discountValue", "Discount value cannot be negative.");
+  }
+
+  if (this.minOrderAmount !== undefined && Number(this.minOrderAmount) < 0) {
+    this.invalidate("minOrderAmount", "Minimum order amount cannot be negative.");
+  }
+
+  if (this.maxDiscountAmount !== undefined && Number(this.maxDiscountAmount) < 0) {
+    this.invalidate("maxDiscountAmount", "Maximum discount cannot be negative.");
+  }
+
+  next();
+});
 
 module.exports = mongoose.model("Coupon", couponSchema);
