@@ -5,6 +5,8 @@ import { Logo } from "../assets/logo";
 function Navbar({ isLoggedIn, userRole, setIsLoggedIn, setUserRole }) {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
+  const [profileImage, setProfileImage] = useState(localStorage.getItem("profileImage") || "");
+  const [profileName, setProfileName] = useState(localStorage.getItem("name") || "User");
   const isAdmin = userRole === "admin";
   const isUser = isLoggedIn && !isAdmin;
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
@@ -43,6 +45,24 @@ function Navbar({ isLoggedIn, userRole, setIsLoggedIn, setUserRole }) {
       window.removeEventListener("cartUpdated", updateCartCount);
     };
   }, []);
+
+  useEffect(() => {
+    const syncProfileData = () => {
+      const nextImage = localStorage.getItem("profileImage") || "";
+      const nextName = localStorage.getItem("name") || "User";
+      setProfileImage(nextImage);
+      setProfileName(nextName);
+    };
+
+    syncProfileData();
+    window.addEventListener("profileUpdated", syncProfileData);
+    window.addEventListener("storage", syncProfileData);
+
+    return () => {
+      window.removeEventListener("profileUpdated", syncProfileData);
+      window.removeEventListener("storage", syncProfileData);
+    };
+  }, [isUser]);
 
   useEffect(() => {
     if (!isUser) {
@@ -311,6 +331,7 @@ function Navbar({ isLoggedIn, userRole, setIsLoggedIn, setUserRole }) {
     localStorage.removeItem("phone");
     localStorage.removeItem("userId");
     localStorage.removeItem("name");
+    localStorage.removeItem("profileImage");
     // 🛒 Keep cart data - only clear on order placement
     setIsLoggedIn(false);
     setUserRole(null);
@@ -432,11 +453,27 @@ function Navbar({ isLoggedIn, userRole, setIsLoggedIn, setUserRole }) {
             {isUser && (
               <li className="nav-item">
                 <Link
-                  className="nav-link text-white fw-semibold mx-1"
+                  className="nav-link text-white fw-semibold mx-1 d-flex align-items-center gap-2"
                   to="/profile"
                   onClick={() => setIsOpen(false)}
                 >
-                  Profile
+                  <span
+                    className="rounded-circle border border-white border-2 d-inline-flex align-items-center justify-content-center overflow-hidden"
+                    style={{ width: 28, height: 28, background: "rgba(255,255,255,0.15)" }}
+                  >
+                    {profileImage ? (
+                      <img
+                        src={profileImage}
+                        alt={profileName}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: "0.7rem", fontWeight: 700 }}>
+                        {profileName?.charAt(0)?.toUpperCase() || "U"}
+                      </span>
+                    )}
+                  </span>
+                  <span>Profile</span>
                 </Link>
               </li>
             )}

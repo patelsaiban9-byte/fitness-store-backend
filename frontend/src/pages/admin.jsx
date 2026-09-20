@@ -24,6 +24,9 @@ const Toast = ({ message, type, show, onClose }) => {
 function Admin() {
   const [products, setProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [stockFilter, setStockFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
   const [form, setForm] = useState({
     name: "",
     category: "Supplements",
@@ -179,16 +182,119 @@ function Admin() {
     return `${API_URL}/${img.replace(/^\/+/, "")}`;
   };
 
-  // Filter products based on search query
+  const categoryOptions = Array.from(
+    new Set(
+      products
+        .map((product) => product.category)
+        .filter((category) => category && category.trim())
+    )
+  ).sort((a, b) => a.localeCompare(b));
+
+  // Filter products based on search query and admin filters
   const filteredProducts = products.filter((product) => {
     const query = searchQuery.toLowerCase();
-    return (
+    const matchesSearch =
+      !query ||
       product.name.toLowerCase().includes(query) ||
       (product.category || "").toLowerCase().includes(query) ||
       product.description.toLowerCase().includes(query) ||
-      product.price.toString().includes(query)
-    );
+      product.price.toString().includes(query);
+
+    const matchesCategory =
+      categoryFilter === "all" || product.category === categoryFilter;
+
+    const stockValue = Number(product.stock ?? -1);
+    const matchesStock =
+      stockFilter === "all" ||
+      (stockFilter === "in-stock" && stockValue > 0) ||
+      (stockFilter === "low-stock" &&
+        product.stock != null &&
+        stockValue <= Number(product.minimumStockThreshold || 5) &&
+        stockValue > 0) ||
+      (stockFilter === "out-of-stock" && stockValue === 0) ||
+      (stockFilter === "not-tracked" && product.stock == null);
+
+    return matchesSearch && matchesCategory && matchesStock;
   });
+
+  const PAGE_SIZE = 8;
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PAGE_SIZE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, categoryFilter, stockFilter]);
+
+  const paginatedProducts = filteredProducts.slice(
+    (safeCurrentPage - 1) * PAGE_SIZE,
+    safeCurrentPage * PAGE_SIZE
+  );
+
+  const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1).slice(
+    0,
+    Math.min(totalPages, 3)
+  );
+
+  const totalStock = products.reduce((sum, product) => {
+    const stock = Number(product.stock ?? 0);
+    return Number.isFinite(stock) ? sum + stock : sum;
+  }, 0);
+
+  const lowStockProducts = products.filter(
+    (product) =>
+      product.stock != null &&
+      Number(product.stock) <= Number(product.minimumStockThreshold || 5)
+  );
+
+  const averagePrice =
+    products.length > 0
+      ? products.reduce((sum, product) => sum + Number(product.price || 0), 0) /
+        products.length
+      : 0;
+
+  const categoryCount = new Set(
+    products
+      .map((product) => product.category)
+      .filter((category) => category && category.trim())
+  ).size;
+
+  const summaryStats = [
+    {
+      label: "Total Products",
+      value: products.length,
+      icon: "🛍️",
+      accent: "#e0f2fe",
+      color: "#0f172a",
+    },
+    {
+      label: "Inventory Stock",
+      value: totalStock,
+      icon: "📦",
+      accent: "#dcfce7",
+      color: "#14532d",
+    },
+    {
+      label: "Low Stock Alerts",
+      value: lowStockProducts.length,
+      icon: "⚠️",
+      accent: "#fef3c7",
+      color: "#92400e",
+    },
+    {
+      label: "Average Price",
+      value: `₹${averagePrice.toFixed(2)}`,
+      icon: "💰",
+      accent: "#f3e8ff",
+      color: "#6b21a8",
+    },
+    {
+      label: "Categories",
+      value: categoryCount,
+      icon: "🏷️",
+      accent: "#dbeafe",
+      color: "#1d4ed8",
+    },
+  ];
 
   return (
     <div className="container py-4">
@@ -219,6 +325,53 @@ function Admin() {
         <Link to="/admin/feedback" className="btn btn-primary">
           📝 View Feedback
         </Link>
+      </div>
+
+      <div className="mb-4">
+        <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+          <h3 className="mb-0 fw-bold">Overview</h3>
+          <span className="text-muted small">Live inventory snapshot</span>
+        </div>
+
+        <div className="row g-3">
+          {summaryStats.map((stat) => (
+            <div className="col-sm-6 col-lg" key={stat.label}>
+              <div
+                className="card border-0 h-100"
+                style={{
+                  background: `linear-gradient(135deg, ${stat.accent} 0%, #ffffff 100%)`,
+                  border: "1px solid rgba(148, 163, 184, 0.18)",
+                  boxShadow: "0 12px 24px rgba(15, 23, 42, 0.06)",
+                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                }}
+              >
+                <div className="card-body p-3">
+                  <div className="d-flex align-items-center justify-content-between mb-3">
+                    <span
+                      className="d-inline-flex align-items-center justify-content-center rounded-circle"
+                      style={{
+                        width: 46,
+                        height: 46,
+                        background: "rgba(255,255,255,0.7)",
+                        fontSize: "1.25rem",
+                        boxShadow: "0 4px 10px rgba(15, 23, 42, 0.08)",
+                      }}
+                    >
+                      {stat.icon}
+                    </span>
+                    <span className="text-muted small fw-semibold">{stat.label}</span>
+                  </div>
+                  <div
+                    className="fw-bold"
+                    style={{ fontSize: "1.9rem", lineHeight: 1.2, color: stat.color }}
+                  >
+                    {stat.value}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="card shadow-sm mb-4">
@@ -391,12 +544,11 @@ function Admin() {
       </div>
 
       <h2 className="mb-3">All Products</h2>
-      
-      {/* Search Bar */}
+
       <div className="card shadow-sm mb-3">
         <div className="card-body">
-          <div className="row align-items-center">
-            <div className="col-md-8">
+          <div className="row g-3 align-items-center">
+            <div className="col-md-5">
               <div className="input-group">
                 <span className="input-group-text bg-primary text-white">
                   🔍
@@ -404,7 +556,7 @@ function Admin() {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Search products by name, category, description, or price..."
+                  placeholder="Search products..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   autoComplete="off"
@@ -415,14 +567,41 @@ function Admin() {
                     type="button"
                     onClick={() => setSearchQuery("")}
                   >
-                    ✕ Clear
+                    ✕
                   </button>
                 )}
               </div>
             </div>
-            <div className="col-md-4 mt-2 mt-md-0">
-              <div className="text-muted">
-                Showing {filteredProducts.length} of {products.length} products
+            <div className="col-md-3">
+              <select
+                className="form-select"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+              >
+                <option value="all">Category ▼</option>
+                {categoryOptions.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-md-3">
+              <select
+                className="form-select"
+                value={stockFilter}
+                onChange={(e) => setStockFilter(e.target.value)}
+              >
+                <option value="all">Stock Status ▼</option>
+                <option value="in-stock">In Stock</option>
+                <option value="low-stock">Low Stock</option>
+                <option value="out-of-stock">Out of Stock</option>
+                <option value="not-tracked">Not Tracked</option>
+              </select>
+            </div>
+            <div className="col-md-1 text-end">
+              <div className="text-muted small">
+                {filteredProducts.length}
               </div>
             </div>
           </div>
@@ -443,77 +622,109 @@ function Admin() {
             </tr>
           </thead>
           <tbody>
-            {filteredProducts.length === 0 ? (
+            {paginatedProducts.length === 0 ? (
               <tr>
                 <td colSpan="7" className="text-center py-4">
                   <div className="text-muted">
-                    {searchQuery
-                      ? `No products found matching "${searchQuery}"`
+                    {searchQuery || categoryFilter !== "all" || stockFilter !== "all"
+                      ? "No products match the current filters"
                       : "No products available"}
                   </div>
                 </td>
               </tr>
             ) : (
-              filteredProducts.map((p) => (
-              <tr key={p._id} className="text-center">
-                <td>{p.name}</td>
-                <td>{p.category || "General"}</td>
-                <td>{p.description}</td>
-                <td>₹{p.price}</td>
-                <td>
-                  {p.stock == null ? (
-                    <span className="badge bg-secondary">Stock Not Tracked</span>
-                  ) : p.stock === 0 ? (
-                    <span className="badge bg-danger">Out of Stock</span>
-                  ) : p.stock <= (p.minimumStockThreshold || 5) ? (
-                    <span className="badge bg-warning text-dark">
-                      Low Stock: {p.stock} units
-                    </span>
-                  ) : (
-                    <span className="badge bg-success">
-                      In Stock: {p.stock} units
-                    </span>
-                  )}
-                  {p.stock != null && (
-                    <div className="small text-muted mt-1">
-                      Alert at: {p.minimumStockThreshold || 5} units
-                    </div>
-                  )}
-                </td>
-                <td>
-                  {p.image && (
-                    <img
-                      // ✅ FIX 3: Correct casing for display
-                      src={getImageUrl(p.image)}
-                      alt={p.name}
-                      className="img-thumbnail mx-auto d-block"
-                      style={{ height: "40px", width: "40px", objectFit: "cover" }}
-                    />
-                  )}
-                </td>
-                <td>
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleEdit(p);
-                    }}
-                    className="btn btn-warning btn-sm me-2"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(p._id)}
-                    className="btn btn-danger btn-sm"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
+              paginatedProducts.map((p) => (
+                <tr key={p._id} className="text-center">
+                  <td>{p.name}</td>
+                  <td>{p.category || "General"}</td>
+                  <td>{p.description}</td>
+                  <td>₹{p.price}</td>
+                  <td>
+                    {p.stock == null ? (
+                      <span className="badge bg-secondary">Stock Not Tracked</span>
+                    ) : p.stock === 0 ? (
+                      <span className="badge bg-danger">Out of Stock</span>
+                    ) : p.stock <= (p.minimumStockThreshold || 5) ? (
+                      <span className="badge bg-warning text-dark">
+                        Low Stock: {p.stock} units
+                      </span>
+                    ) : (
+                      <span className="badge bg-success">
+                        In Stock: {p.stock} units
+                      </span>
+                    )}
+                    {p.stock != null && (
+                      <div className="small text-muted mt-1">
+                        Alert at: {p.minimumStockThreshold || 5} units
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    {p.image && (
+                      <img
+                        src={getImageUrl(p.image)}
+                        alt={p.name}
+                        className="img-thumbnail mx-auto d-block"
+                        style={{ height: "40px", width: "40px", objectFit: "cover" }}
+                      />
+                    )}
+                  </td>
+                  <td>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleEdit(p);
+                      }}
+                      className="btn btn-warning btn-sm me-2"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(p._id)}
+                      className="btn btn-danger btn-sm"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
               ))
             )}
           </tbody>
         </table>
       </div>
+
+      {filteredProducts.length > 0 && (
+        <div className="d-flex justify-content-center align-items-center flex-wrap gap-2 mt-4">
+          <button
+            type="button"
+            className="btn btn-outline-secondary btn-sm"
+            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+            disabled={safeCurrentPage === 1}
+          >
+            ← Previous
+          </button>
+
+          {pageNumbers.map((page) => (
+            <button
+              key={page}
+              type="button"
+              className={`btn btn-sm ${safeCurrentPage === page ? "btn-primary" : "btn-outline-secondary"}`}
+              onClick={() => setCurrentPage(page)}
+            >
+              {page}
+            </button>
+          ))}
+
+          <button
+            type="button"
+            className="btn btn-outline-secondary btn-sm"
+            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+            disabled={safeCurrentPage === totalPages}
+          >
+            Next →
+          </button>
+        </div>
+      )}
     </div>
   );
 }

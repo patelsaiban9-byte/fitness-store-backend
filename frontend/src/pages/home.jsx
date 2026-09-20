@@ -209,28 +209,27 @@ function Home() {
         <div className="fit-promo-card shadow-sm">
           <div>
             <p className="fit-promo-tag">🎉 New User Offer</p>
-            <h2>{featuredCoupon ? `Use ${featuredCoupon.code}` : "Use WELCOME100"}</h2>
-            <p>
+            <h2>
               {featuredCoupon
-                ? `Get ${formatDiscount(featuredCoupon)} on orders above ₹${featuredCoupon.minOrderAmount || 0}.`
-                : "Save on checkout with our latest coupon offers."
-              }
+                ? `${formatDiscount(featuredCoupon)} your first order`
+                : "25% OFF your first order"}
+            </h2>
+            <p className="mb-2">
+              Use code <strong>{featuredCoupon ? featuredCoupon.code : "WELCOME100"}</strong>
+            </p>
+            <p className="mb-0 text-muted">
+              {featuredCoupon
+                ? `Valid on orders above ₹${featuredCoupon.minOrderAmount || 0}.`
+                : "Instant savings on your first checkout."}
             </p>
           </div>
           <div className="fit-promo-actions">
             <button
               type="button"
               className="fit-primary-btn"
-              onClick={() => navigate("/offers")}
-            >
-              View all offers
-            </button>
-            <button
-              type="button"
-              className="fit-secondary-btn"
               onClick={() => navigate("/products")}
             >
-              Shop now
+              Shop Now
             </button>
           </div>
         </div>

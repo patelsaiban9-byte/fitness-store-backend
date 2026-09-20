@@ -29,7 +29,9 @@ function MyOrders() {
   const [cancelling, setCancelling] = useState(null);
   const [returns, setReturns] = useState([]);
   const [showReturnModal, setShowReturnModal] = useState(false);
+  const [showOrderDetailsModal, setShowOrderDetailsModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [selectedOrderDetails, setSelectedOrderDetails] = useState(null);
   const [returnReason, setReturnReason] = useState("");
   const [submittingReturn, setSubmittingReturn] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
@@ -53,6 +55,81 @@ function MyOrders() {
     if (!img) return null;
     if (img.startsWith("http://") || img.startsWith("https://")) return img;
     return `${API_URL}/${img.replace(/^\/+/, "")}`;
+  };
+
+  const formatPaymentMethod = (method) => {
+    if (!method) return "COD";
+
+    const normalized = String(method).trim().toUpperCase();
+
+    if (normalized === "COD") return "COD";
+    if (normalized === "UPI") return "UPI";
+    if (normalized === "CARD") return "Card";
+    if (normalized === "ONLINE" || normalized === "RAZORPAY") return "Razorpay";
+
+    return method;
+  };
+
+  const trackingSteps = [
+    { key: "PLACED", label: "Placed" },
+    { key: "CONFIRMED", label: "Confirmed" },
+    { key: "SHIPPED", label: "Shipped" },
+    { key: "OUT_FOR_DELIVERY", label: "Out for\nDelivery" },
+    { key: "DELIVERED", label: "Delivered" },
+  ];
+
+  const getTrackingStepIndex = (status) => {
+    const safeStatus = status || "PLACED";
+    return trackingSteps.findIndex((step) => step.key === safeStatus);
+  };
+
+  const formatDateRange = (startDate) => {
+    if (!startDate) return "Not available";
+
+    const start = new Date(startDate);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 2);
+
+    const format = (date) =>
+      new Intl.DateTimeFormat("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }).format(date);
+
+    return `${format(start)}–${format(end)}`;
+  };
+
+  const getEstimatedDelivery = (order) => {
+    if (!order?.createdAt) return "Not available";
+    const baseDate = new Date(order.createdAt);
+    baseDate.setDate(baseDate.getDate() + 3);
+    return formatDateRange(baseDate);
+  };
+
+  const getTrackingEvents = (order) => {
+    if (Array.isArray(order?.trackingEvents) && order.trackingEvents.length > 0) {
+      return order.trackingEvents.map((event) => ({
+        status: event.status,
+        note: event.note || "Order update",
+        createdAt: event.createdAt,
+      }));
+    }
+
+    const createdAt = order?.createdAt ? new Date(order.createdAt) : new Date();
+    const fallbackEvents = [
+      { status: "PLACED", note: "Order placed", createdAt: createdAt },
+      { status: "CONFIRMED", note: "Order confirmed", createdAt: new Date(createdAt.getTime() + 2 * 60 * 60 * 1000) },
+      { status: "SHIPPED", note: "Shipped", createdAt: new Date(createdAt.getTime() + 2 * 24 * 60 * 60 * 1000) },
+      { status: "OUT_FOR_DELIVERY", note: "Out for delivery", createdAt: new Date(createdAt.getTime() + 4 * 24 * 60 * 60 * 1000) },
+      { status: "DELIVERED", note: "Delivered", createdAt: new Date(createdAt.getTime() + 6 * 24 * 60 * 60 * 1000) },
+    ];
+
+    return fallbackEvents.filter((event) => {
+      const eventIndex = trackingSteps.findIndex((step) => step.key === event.status);
+      const currentIndex = getTrackingStepIndex(order?.orderStatus);
+      return eventIndex <= currentIndex || currentIndex === -1;
+    });
   };
 
   const handleImageError = (e) => {
@@ -338,7 +415,12 @@ function MyOrders() {
               </div>
 
               {/* Orders for this date */}
-              {groupedOrders[dateLabel].map((order) => (
+              {groupedOrders[dateLabel].map((order) => {
+                const currentStepIndex = getTrackingStepIndex(order.orderStatus);
+                const activeStepIndex = currentStepIndex >= 0 ? currentStepIndex : 0;
+                const visibleTrackingEvents = getTrackingEvents(order);
+
+                return (
                 <div key={order._id} className="card mb-4 shadow-sm border-0">
                   {/* CARD HEADER */}
                   <div className="card-header bg-light border-bottom">
@@ -429,33 +511,65 @@ function MyOrders() {
                       </div>
                     </div>
 
-                    {/* TRACKING EVENTS */}
-                    {Array.isArray(order.trackingEvents) && order.trackingEvents.length > 0 && (
-                      <div className="mb-4">
-                        <h6 className="fw-bold mb-3 text-secondary">📍 Tracking Information</h6>
-                        <div className="timeline">
-                          {order.trackingEvents.map((ev, idx) => (
-                            <div key={idx} className="d-flex mb-3">
-                              <div className="me-3">
+                    <div className="mb-4">
+                      <div className="d-flex align-items-center justify-content-between mb-2">
+                        {trackingSteps.map((step, index) => {
+                          const isComplete = index <= activeStepIndex;
+                          const isCurrent = index === activeStepIndex;
+
+                          return (
+                            <div key={step.key} className="flex-fill text-center" style={{ minWidth: 0 }}>
+                              <div className="d-flex justify-content-center align-items-center mb-2">
                                 <div
-                                  className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
-                                  style={{ width: "32px", height: "32px", minWidth: "32px" }}
+                                  className={`d-flex align-items-center justify-content-center rounded-circle border ${
+                                    isComplete ? "bg-success text-white border-success" : "bg-white text-muted border-secondary"
+                                  } ${isCurrent ? "shadow-sm" : ""}`}
+                                  style={{ width: 22, height: 22, fontSize: "0.7rem", fontWeight: 700 }}
                                 >
-                                  <small>✓</small>
+                                  {isComplete ? "✓" : "○"}
                                 </div>
                               </div>
-                              <div className="flex-grow-1">
-                                <p className="mb-1 fw-bold">{ev.status}</p>
-                                <small className="text-muted d-block">{ev.note}</small>
-                                <small className="text-muted">
-                                  {ev.createdAt ? new Date(ev.createdAt).toLocaleString() : ''}
-                                </small>
+                              <div
+                                className={`small text-center ${
+                                  isCurrent ? "fw-bold text-success" : isComplete ? "text-success" : "text-muted"
+                                }`}
+                                style={{ whiteSpace: "pre-line", lineHeight: "1.2" }}
+                              >
+                                {step.label}
                               </div>
                             </div>
-                          ))}
+                          );
+                        })}
+                      </div>
+
+                      <div className="position-relative mt-2 mb-3">
+                        <div className="w-100 bg-light rounded" style={{ height: 6 }}>
+                          <div
+                            className="bg-success rounded"
+                            style={{
+                              height: "100%",
+                              width: `${((activeStepIndex + 1) / trackingSteps.length) * 100}%`,
+                              transition: "width 0.3s ease",
+                            }}
+                          />
                         </div>
                       </div>
-                    )}
+                    </div>
+
+                    <div className="mb-4 p-3 border rounded bg-light-subtle">
+                      <div className="fw-bold text-secondary mb-2">🚚 Estimated delivery</div>
+                      <div className="text-dark fw-semibold">{getEstimatedDelivery(order)}</div>
+                    </div>
+
+                    <div className="mb-4 p-3 border rounded bg-light-subtle">
+                      <div className="fw-bold text-secondary mb-2">📍 Delivery Address</div>
+                      <div className="text-dark">
+                        {order.customer?.name || "Customer"}<br />
+                        {order.customer?.address || "Address not available"}<br />
+                        {order.customer?.landmark ? `${order.customer.landmark}, ` : ""}
+                        {order.customer?.pincode || ""}
+                      </div>
+                    </div>
 
                     {/* INVOICE DOWNLOAD & RETURN REQUEST */}
                     <div className="d-flex gap-2 flex-wrap">
@@ -493,16 +607,69 @@ function MyOrders() {
                       </button>
 
                       <button
-                        className={`btn ${canCancelOrder(order.orderStatus) ? "btn-outline-danger" : "btn-outline-secondary"}`}
-                        onClick={() => handleCancelOrder(order)}
-                        disabled={
-                          cancelling === order._id ||
-                          !canCancelOrder(order.orderStatus)
-                        }
-                        title={getCancelButtonTitle(order.orderStatus || "PLACED")}
+                        className="btn btn-outline-info"
+                        onClick={() => {
+                          setSelectedOrderDetails(order);
+                          setShowOrderDetailsModal(true);
+                        }}
                       >
-                        {cancelling === order._id ? "Cancelling..." : "Cancel Order"}
+                        👁️ View Details
                       </button>
+
+                      {(() => {
+                        const status = order.orderStatus || "PLACED";
+
+                        if (status === "PLACED" || status === "CONFIRMED") {
+                          return (
+                            <button
+                              className={`btn ${canCancelOrder(status) ? "btn-outline-danger" : "btn-outline-secondary"}`}
+                              onClick={() => handleCancelOrder(order)}
+                              disabled={
+                                cancelling === order._id ||
+                                !canCancelOrder(status)
+                              }
+                              title={getCancelButtonTitle(status)}
+                            >
+                              {cancelling === order._id ? "Cancelling..." : "Cancel Order"}
+                            </button>
+                          );
+                        }
+
+                        if (status === "SHIPPED" || status === "OUT_FOR_DELIVERY") {
+                          return (
+                            <button
+                              className="btn btn-outline-primary"
+                              onClick={() => {
+                                setSelectedOrderDetails(order);
+                                setShowOrderDetailsModal(true);
+                              }}
+                            >
+                              📦 Track Package
+                            </button>
+                          );
+                        }
+
+                        if (status === "DELIVERED") {
+                          return (
+                            <>
+                              <button
+                                className="btn btn-outline-success"
+                                onClick={() => navigate("/feedback")}
+                              >
+                                ⭐ Rate & Review
+                              </button>
+                              <button
+                                className="btn btn-primary"
+                                onClick={() => navigate("/products")}
+                              >
+                                🛍️ Buy Again
+                              </button>
+                            </>
+                          );
+                        }
+
+                        return null;
+                      })()}
 
                       {/* RETURN REQUEST BUTTON */}
                       {order.orderStatus === "DELIVERED" && (() => {
@@ -540,11 +707,148 @@ function MyOrders() {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           ))}
         </div>
       </div>
+
+      {/* ORDER DETAILS MODAL */}
+      {showOrderDetailsModal && selectedOrderDetails && (
+        <div
+          className="modal show d-block"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+          onClick={() => setShowOrderDetailsModal(false)}
+        >
+          <div
+            className="modal-dialog modal-dialog-centered modal-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Order Details</h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setShowOrderDetailsModal(false)}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <div className="row g-3 mb-3">
+                  <div className="col-md-6">
+                    <strong>Order ID:</strong>
+                    <div className="text-muted">{selectedOrderDetails._id}</div>
+                  </div>
+                  <div className="col-md-6">
+                    <strong>Status:</strong>
+                    <div className="text-muted">{selectedOrderDetails.orderStatus || "PLACED"}</div>
+                  </div>
+                  <div className="col-md-6">
+                    <strong>Payment Status:</strong>
+                    <div className="text-muted">{selectedOrderDetails.paymentStatus || "PENDING"}</div>
+                  </div>
+                  <div className="col-md-6">
+                    <strong>Payment Method:</strong>
+                    <div className="text-muted">
+                      {formatPaymentMethod(selectedOrderDetails.paymentMethod)}
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <strong>Estimated Delivery:</strong>
+                    <div className="text-muted">{getEstimatedDelivery(selectedOrderDetails)}</div>
+                  </div>
+                  <div className="col-md-12">
+                    <strong>Delivery Address:</strong>
+                    <div className="text-muted">
+                      {selectedOrderDetails.customer?.name || "Customer"}<br />
+                      {selectedOrderDetails.customer?.address || "Address not available"}<br />
+                      {selectedOrderDetails.customer?.landmark ? `${selectedOrderDetails.customer.landmark}, ` : ""}
+                      {selectedOrderDetails.customer?.pincode || ""}
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <strong>Date:</strong>
+                    <div className="text-muted">
+                      {selectedOrderDetails.createdAt
+                        ? new Date(selectedOrderDetails.createdAt).toLocaleString()
+                        : "N/A"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mb-3">
+                  <strong>Tracking Information</strong>
+                  <div className="mt-2">
+                    {getTrackingEvents(selectedOrderDetails).map((ev, idx) => {
+                      const isCompleted = idx <= getTrackingStepIndex(selectedOrderDetails.orderStatus || "PLACED");
+
+                      return (
+                        <div key={`${ev.status}-${idx}`} className="d-flex mb-3">
+                          <div className="me-3">
+                            <div
+                              className={`rounded-circle d-flex align-items-center justify-content-center ${isCompleted ? "bg-success text-white" : "bg-light text-muted border"}`}
+                              style={{ width: "28px", height: "28px", minWidth: "28px" }}
+                            >
+                              <small>{isCompleted ? "✓" : "○"}</small>
+                            </div>
+                          </div>
+                          <div className="flex-grow-1">
+                            <div className={`fw-bold ${isCompleted ? "text-dark" : "text-muted"}`}>
+                              {ev.status.replace(/_/g, " ")}
+                            </div>
+                            <small className="text-muted d-block">{ev.note}</small>
+                            <small className="text-muted">
+                              {ev.createdAt ? new Date(ev.createdAt).toLocaleString([], {
+                                day: "2-digit",
+                                month: "short",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              }) : "Waiting for update"}
+                            </small>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="mb-3">
+                  <strong>Items</strong>
+                  <div className="mt-2">
+                    {selectedOrderDetails.items?.map((item, index) => (
+                      <div key={index} className="d-flex justify-content-between border-bottom py-2">
+                        <div>
+                          <div className="fw-semibold">{item.productId?.name || item.name}</div>
+                          <small className="text-muted">Qty: {item.qty}</small>
+                        </div>
+                        <div className="text-end">
+                          <div className="fw-semibold">₹{(item.price * item.qty).toFixed(2)}</div>
+                          <small className="text-muted">₹{item.price}/item</small>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="d-flex justify-content-between align-items-center border-top pt-3">
+                  <strong>Total Amount</strong>
+                  <strong className="text-success">₹{Number(selectedOrderDetails.totalAmount).toFixed(2)}</strong>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => setShowOrderDetailsModal(false)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* RETURN REQUEST MODAL */}
       {showReturnModal && (

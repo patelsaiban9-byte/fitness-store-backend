@@ -41,11 +41,12 @@ function Profile() {
   const [activeTab, setActiveTab] = useState("personal");
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    profileImage: "",
+    name: localStorage.getItem("name") || "",
+    email: localStorage.getItem("email") || "",
+    phone: localStorage.getItem("phone") || "",
+    profileImage: localStorage.getItem("profileImage") || "",
   });
+  const [profileImagePreview, setProfileImagePreview] = useState(localStorage.getItem("profileImage") || "");
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileMessage, setProfileMessage] = useState(null);
   const [profileError, setProfileError] = useState(null);
@@ -121,15 +122,18 @@ function Profile() {
     try {
       const data = await fetchJson(`${API_URL}/api/auth/profile`);
       const profileData = data?.user || data;
+      const nextProfileImage = profileData?.profileImage || "";
       setProfile({
         name: profileData?.name || "",
         email: profileData?.email || "",
         phone: profileData?.phone || "",
-        profileImage: profileData?.profileImage || "",
+        profileImage: nextProfileImage,
       });
+      setProfileImagePreview(nextProfileImage);
       localStorage.setItem("name", profileData?.name || "");
       localStorage.setItem("email", profileData?.email || "");
       localStorage.setItem("phone", profileData?.phone || "");
+      localStorage.setItem("profileImage", nextProfileImage || "");
     } catch (error) {
       console.error("Load profile error:", error);
     }
@@ -190,6 +194,47 @@ function Profile() {
     }
   };
 
+  const handleProfileImageChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setProfileError("Please choose a valid image file.");
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setProfileError("Please choose an image smaller than 2 MB.");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const response = await fetch(`${API_URL}/api/upload`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Image upload failed");
+      }
+
+      const uploadedImageUrl = data.imageUrl;
+      setProfile((prev) => ({ ...prev, profileImage: uploadedImageUrl }));
+      setProfileImagePreview(uploadedImageUrl);
+      localStorage.setItem("profileImage", uploadedImageUrl || "");
+      setProfileError(null);
+    } catch (error) {
+      setProfileError(error.message || "Image upload failed");
+    }
+  };
+
   const handleProfileSave = async (event) => {
     event.preventDefault();
     setProfileLoading(true);
@@ -197,6 +242,26 @@ function Profile() {
     setProfileMessage(null);
 
     try {
+      if (profile.profileImage && !profile.profileImage.startsWith("http")) {
+        const formData = new FormData();
+        formData.append("image", profile.profileImage);
+
+        const uploadResponse = await fetch(`${API_URL}/api/upload`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        });
+
+        const uploadData = await uploadResponse.json();
+        if (!uploadResponse.ok) {
+          throw new Error(uploadData.message || "Profile image upload failed");
+        }
+
+        profile.profileImage = uploadData.imageUrl;
+      }
+
       const data = await fetchJson(`${API_URL}/api/auth/profile`, {
         method: "PUT",
         body: JSON.stringify(profile),
@@ -206,6 +271,7 @@ function Profile() {
       localStorage.setItem("name", profile.name);
       localStorage.setItem("email", profile.email);
       localStorage.setItem("phone", profile.phone);
+      localStorage.setItem("profileImage", profile.profileImage || "");
       window.dispatchEvent(new Event("profileUpdated"));
     } catch (error) {
       setProfileError(error.message);
@@ -387,6 +453,15 @@ function Profile() {
     }
   };
 
+  const getInitials = (name = "User") => {
+    return name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() || "")
+      .join("") || "U";
+  };
+
   if (loading) {
     return (
       <div className="text-center py-5">
@@ -406,27 +481,44 @@ function Profile() {
       />
 
       <div className="row mb-4">
-        <div className="col-12 mb-3">
-          <div className="d-flex align-items-center justify-content-between flex-wrap gap-3">
-            <div>
-              <h2 className="fw-bold">My Profile</h2>
-              <p className="text-secondary mb-0">Manage your account, addresses, security and saved offers.</p>
-            </div>
-            <div className="d-flex gap-3 flex-wrap align-items-center">
-              <div className="d-flex align-items-center gap-2">
-                <span className="fs-4">👤</span>
-                <div>
-                  <div className="fw-semibold">{profile.name || "Profile User"}</div>
-                  <div className="small text-muted">{profile.email}</div>
+        <div className="col-12">
+          <div className="card border-0 shadow-sm" style={{ background: "linear-gradient(135deg, #f8fbff 0%, #eef4ff 100%)" }}>
+            <div className="card-body p-4">
+              <div className="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                <div className="d-flex align-items-center gap-3">
+                  <div
+                    className="rounded-circle d-flex align-items-center justify-content-center overflow-hidden border border-2 border-white shadow-sm"
+                    style={{ width: 72, height: 72, background: "#0d6efd", color: "#fff", fontSize: "1.4rem", fontWeight: 700 }}
+                  >
+                    {profile.profileImage ? (
+                      <img
+                        src={profile.profileImage}
+                        alt={profile.name || "User profile"}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                    ) : (
+                      getInitials(profile.name)
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="text-uppercase small text-primary fw-semibold mb-1">Profile</div>
+                    <h2 className="fw-bold mb-1">{profile.name || "Profile User"}</h2>
+                    <div className="d-flex flex-wrap gap-3 text-muted small">
+                      <span>{profile.email || "No email added"}</span>
+                      <span>📞 {profile.phone || "No phone number"}</span>
+                    </div>
+                  </div>
                 </div>
+
+                <button
+                  type="button"
+                  className="btn btn-primary px-4"
+                  onClick={() => setActiveTab("personal")}
+                >
+                  Edit Profile
+                </button>
               </div>
-              <button
-                type="button"
-                className="btn btn-outline-primary"
-                onClick={() => setActiveTab("personal")}
-              >
-                Edit Profile
-              </button>
             </div>
           </div>
         </div>
@@ -437,25 +529,37 @@ function Profile() {
           <div className="card shadow-sm border-0">
             <div className="card-body p-3">
               <div className="mb-4 text-center">
-                <img
-                  src={
-                    profile.profileImage ||
-                    `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || "User")}&background=0D6EFD&color=fff&size=128`
-                  }
-                  alt="Profile"
-                  className="rounded-circle img-fluid"
-                  style={{ width: 120, height: 120, objectFit: "cover" }}
-                />
+                <div
+                  className="rounded-circle d-flex align-items-center justify-content-center border border-3 border-light shadow-sm overflow-hidden mx-auto"
+                  style={{
+                    width: 88,
+                    height: 88,
+                    background: "#0d6efd",
+                    color: "#fff",
+                    fontSize: "1.8rem",
+                    fontWeight: 700,
+                  }}
+                >
+                  {(profile.profileImage || profileImagePreview) ? (
+                    <img
+                      src={profile.profileImage || profileImagePreview}
+                      alt="Profile"
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                  ) : (
+                    getInitials(profile.name)
+                  )}
+                </div>
               </div>
               <div className="list-group list-group-flush">
                 {[
-                  { id: "personal", label: "Personal Information" },
-                  { id: "addresses", label: "Addresses" },
-                  { id: "security", label: "Security" },
-                  { id: "orders", label: "Orders" },
-                  { id: "wishlist", label: "Wishlist" },
-                  { id: "ratings", label: "My Ratings" },
-                  { id: "coupons", label: "Saved Coupons" },
+                  { id: "personal", label: "👤 Personal Information" },
+                  { id: "addresses", label: "📍 Addresses" },
+                  { id: "security", label: "🔒 Security" },
+                  { id: "orders", label: "📦 Orders" },
+                  { id: "wishlist", label: "❤️ Wishlist" },
+                  { id: "ratings", label: "⭐ My Ratings" },
+                  { id: "coupons", label: "🎟️ Saved Coupons" },
                 ].map((item) => (
                   <button
                     type="button"
@@ -475,21 +579,36 @@ function Profile() {
         <div className="col-lg-9">
           <div className="row g-3 mb-4">
             <div className="col-sm-4">
-              <div className="card p-3 h-100 shadow-sm border-0">
-                <div className="text-muted small">Total Orders</div>
-                <div className="fs-3 fw-bold">{ordersStats.total}</div>
+              <div className="card h-100 shadow-sm border-0" style={{ background: "linear-gradient(135deg, #f4f9ff 0%, #eef5ff 100%)" }}>
+                <div className="card-body p-3">
+                  <div className="d-flex align-items-center gap-2 mb-3">
+                    <span className="d-inline-flex align-items-center justify-content-center rounded-circle" style={{ width: 40, height: 40, background: "#dfeeff", fontSize: "1.2rem" }}>🛍️</span>
+                    <span className="text-muted small fw-semibold">Total Orders</span>
+                  </div>
+                  <div className="fs-2 fw-bold text-dark">{ordersStats.total}</div>
+                </div>
               </div>
             </div>
             <div className="col-sm-4">
-              <div className="card p-3 h-100 shadow-sm border-0">
-                <div className="text-muted small">Completed</div>
-                <div className="fs-3 fw-bold">{ordersStats.completed}</div>
+              <div className="card h-100 shadow-sm border-0" style={{ background: "linear-gradient(135deg, #f2fff7 0%, #edfdf2 100%)" }}>
+                <div className="card-body p-3">
+                  <div className="d-flex align-items-center gap-2 mb-3">
+                    <span className="d-inline-flex align-items-center justify-content-center rounded-circle" style={{ width: 40, height: 40, background: "#dff7e8", fontSize: "1.2rem" }}>✅</span>
+                    <span className="text-muted small fw-semibold">Completed</span>
+                  </div>
+                  <div className="fs-2 fw-bold text-dark">{ordersStats.completed}</div>
+                </div>
               </div>
             </div>
             <div className="col-sm-4">
-              <div className="card p-3 h-100 shadow-sm border-0">
-                <div className="text-muted small">Pending</div>
-                <div className="fs-3 fw-bold">{ordersStats.pending}</div>
+              <div className="card h-100 shadow-sm border-0" style={{ background: "linear-gradient(135deg, #fffaf1 0%, #fff4e5 100%)" }}>
+                <div className="card-body p-3">
+                  <div className="d-flex align-items-center gap-2 mb-3">
+                    <span className="d-inline-flex align-items-center justify-content-center rounded-circle" style={{ width: 40, height: 40, background: "#ffe9c8", fontSize: "1.2rem" }}>⏳</span>
+                    <span className="text-muted small fw-semibold">Pending</span>
+                  </div>
+                  <div className="fs-2 fw-bold text-dark">{ordersStats.pending}</div>
+                </div>
               </div>
             </div>
           </div>
@@ -503,22 +622,25 @@ function Profile() {
                 <form onSubmit={handleProfileSave}>
                   <div className="row gy-3">
                     <div className="col-md-6">
-                      <label className="form-label">Name</label>
+                      <label className="form-label fw-semibold">Name</label>
                       <input
                         className="form-control"
                         value={profile.name}
+                        placeholder="Profile User"
                         onChange={(e) => setProfile({ ...profile, name: e.target.value })}
                         required
                       />
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label">Email</label>
+                      <label className="form-label fw-semibold">Email</label>
                       <input
                         type="email"
-                        className="form-control"
+                        className="form-control bg-light"
                         value={profile.email}
-                        onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                        required
+                        readOnly
+                        disabled
+                        aria-readonly="true"
+                        style={{ cursor: "not-allowed", opacity: 0.9 }}
                       />
                     </div>
                     <div className="col-md-6">
@@ -531,16 +653,30 @@ function Profile() {
                       />
                     </div>
                     <div className="col-md-6">
-                      <label className="form-label">Profile Image URL (optional)</label>
-                      <input
-                        className="form-control"
-                        value={profile.profileImage}
-                        onChange={(e) => setProfile({ ...profile, profileImage: e.target.value })}
-                        placeholder="https://example.com/photo.jpg"
-                      />
+                      <label className="form-label fw-semibold">Profile Picture</label>
+                      <div className="d-flex align-items-center gap-3 flex-wrap">
+                        <label className="btn btn-outline-primary mb-0" style={{ cursor: "pointer" }}>
+                          Choose Image
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="d-none"
+                            onChange={handleProfileImageChange}
+                          />
+                        </label>
+                        {(profile.profileImage || profileImagePreview) && (
+                          <img
+                            src={profile.profileImage || profileImagePreview}
+                            alt="Profile preview"
+                            className="rounded-circle border"
+                            style={{ width: 52, height: 52, objectFit: "cover" }}
+                          />
+                        )}
+                      </div>
+                      <div className="text-muted small mt-2">Recommended: JPG/PNG, max 2 MB</div>
                     </div>
                   </div>
-                  <button type="submit" className="btn btn-primary mt-4" disabled={profileLoading}>
+                  <button type="submit" className="btn btn-primary mt-5 px-4 py-2 fw-semibold" disabled={profileLoading}>
                     {profileLoading ? "Saving..." : "Save Profile"}
                   </button>
                 </form>
